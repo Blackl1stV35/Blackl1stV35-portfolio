@@ -3,6 +3,11 @@ import path from 'path'
 import StatusBadge from '@/components/StatusBadge'
 import type { StatusColor } from '@/types'
 
+export const revalidate = 0
+
+
+
+
 interface Author {
   name: string; title: string; status: StatusColor; statusLabel: string
   bio: string; bio2?: string; tags: string[]

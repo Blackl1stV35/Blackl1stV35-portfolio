@@ -11,10 +11,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        {/* Prevent Google's own translate banner from auto-triggering */}
-        <meta name="google" content="notranslate" />
-      </head>
       <body className="bg-zinc-50 text-zinc-900 antialiased">
         <Navbar />
         <main className="max-w-4xl mx-auto px-6 py-10">{children}</main>
@@ -29,35 +25,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </footer>
 
         {/*
-          Google Translate widget — fixed bottom-right, outside nav entirely.
-          The nav has a mount point (#google_translate_element) but the actual
-          dropdown renders in a fixed frame so it never clips under nav z-index.
+          Google Translate: fixed bottom-right, outside nav z-index entirely.
+          No blocking divs anywhere near it. InlineLayout.SIMPLE renders a
+          clickable language picker inline.
         */}
-        <div
-          id="google_translate_element"
-          style={{
-            position: 'fixed',
-            bottom: '16px',
-            right: '16px',
-            zIndex: 9999,
-            background: 'white',
-            borderRadius: '6px',
-            border: '0.5px solid #e4e4e7',
-            padding: '4px 8px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          }}
-        />
+        <div id="google_translate_element" style={{
+          position: 'fixed', bottom: 16, right: 16, zIndex: 9999,
+        }} />
 
         <Script id="gt-init" strategy="afterInteractive">{`
           function googleTranslateElementInit() {
-            new google.translate.TranslateElement(
-              {
+            try {
+              new google.translate.TranslateElement({
                 pageLanguage: 'en',
-                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
                 autoDisplay: false,
-              },
-              'google_translate_element'
-            );
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+              }, 'google_translate_element');
+            } catch(e) { console.warn('GT init failed', e); }
           }
         `}</Script>
         <Script

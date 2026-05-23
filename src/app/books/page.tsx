@@ -2,6 +2,11 @@ import { getCollection } from '@/lib/collections'
 import type { BookEntry } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 
+export const revalidate = 0
+
+
+
+
 export default function BooksPage() {
   const entries = getCollection<BookEntry>('books')
   return (

@@ -2,6 +2,11 @@ import { getCollection } from '@/lib/collections'
 import type { ProjectEntry } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 
+export const revalidate = 0
+
+
+
+
 export default function ProjectsPage() {
   const entries = getCollection<ProjectEntry>('projects')
   return (

@@ -2,6 +2,11 @@ import { getCollection } from '@/lib/collections'
 import type { WorkEntry } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 
+export const revalidate = 0
+
+
+
+
 export default function WorkPage() {
   const entries = getCollection<WorkEntry>('work')
   return (
