@@ -4,9 +4,9 @@ export default function ContactPage() {
       <div className="section-label">Contact</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
         {[
-          { label: 'Email',    val: 'you@example.com',         href: 'mailto:you@example.com' },
-          { label: 'GitHub',   val: 'github.com/yourusername', href: 'https://github.com/yourusername' },
-          { label: 'LinkedIn', val: 'linkedin.com/in/you',     href: 'https://linkedin.com' },
+          { label: 'Email',    val: 'you@example.com',         href: 'kanokphan.s@ku.th' },
+          { label: 'GitHub',   val: 'github.com/yourusername', href: 'https://github.com/Blackl1stV35' },
+          { label: 'LinkedIn', val: 'linkedin.com/in/you',     href: 'https://www.linkedin.com/in/kanokphan-sirithienthong-034787230' },
           { label: 'Location', val: 'Bangkok, Thailand',       href: null },
         ].map(({ label, val, href }) => (
           <div key={label} className="border border-zinc-100 rounded-md p-4 bg-white">
