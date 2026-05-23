@@ -71,6 +71,8 @@ const AUTHOR_FIELDS: FieldDef[] = [
   { key: 'degree2',     label: 'Degree / credential 2', type: 'text' },
   { key: 'github',      label: 'GitHub URL / handle', type: 'text' },
   { key: 'email',       label: 'Email',               type: 'text' },
+  { key: 'linkedin',    label: 'LinkedIn URL',         type: 'text' },
+  { key: 'location',    label: 'Location',             type: 'text' },
 ]
 
 export default function AdminPage() {
@@ -132,7 +134,7 @@ export default function AdminPage() {
       setLocked(true)
       setError('Too many attempts. Locked for 15 minutes.')
     } else {
-      setError(`Incorrect token. ${json.remaining ?? ''} attempt${json.remaining === 1 ? '' : 's'} remaining.`)
+      setError(json.error ?? 'Incorrect token.')
     }
   }
 

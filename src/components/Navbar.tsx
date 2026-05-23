@@ -13,7 +13,9 @@ const NAV = [
   { href: '/contact',      label: 'Contact'      },
 ]
 
-export default function Navbar() {
+interface Props { initials: string }
+
+export default function Navbar({ initials }: Props) {
   const pathname = usePathname()
   const [dlOpen, setDlOpen] = useState(false)
   const [dlType, setDlType] = useState<'cv' | 'portfolio'>('cv')
@@ -23,7 +25,7 @@ export default function Navbar() {
       <nav className="sticky top-0 z-40 border-b border-zinc-200 bg-white">
         <div className="max-w-4xl mx-auto px-6 flex items-center justify-between" style={{ height: 52 }}>
           <Link href="/" className="font-serif font-bold text-base tracking-tight text-zinc-900 flex-shrink-0">
-            K.S
+            {initials}
           </Link>
           <div className="hidden md:flex items-center">
             {NAV.map(({ href, label }) => (
@@ -52,24 +54,36 @@ export default function Navbar() {
             <h2 className="font-serif font-bold text-base mb-2">
               {dlType === 'cv' ? 'Download CV / Resume' : 'Download Portfolio'}
             </h2>
-            <p className="text-sm text-zinc-500 font-serif mb-5 leading-relaxed">
+            <p className="text-sm text-zinc-500 font-serif mb-4 leading-relaxed">
               {dlType === 'cv'
-                ? 'Latest CV — static file, always reflects your most recent upload.'
-                : 'Full portfolio document — cover page, bio, work, projects, and publications.'}
+                ? 'Latest CV — static file, reflects your most recent upload.'
+                : 'Full portfolio — cover, bio, work, projects, publications, contact.'}
             </p>
-            <div className="flex gap-2 mb-3">
-              <a href={dlType === 'cv' ? '/cv.pdf' : '/api/export?format=pdf'} download
-                className="flex-1 text-center text-sm font-mono bg-zinc-900 text-white py-2 rounded hover:bg-zinc-700 transition-colors"
-                onClick={() => setDlOpen(false)}
-              >PDF</a>
-              <a href={dlType === 'cv' ? '/cv.pdf' : '/api/export?format=docx'} download
-                className="flex-1 text-center text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50 transition-colors"
-                onClick={() => setDlOpen(false)}
-              >DOCX</a>
-              <button onClick={() => setDlOpen(false)}
-                className="px-4 text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50"
-              >✕</button>
-            </div>
+            {dlType === 'portfolio' ? (
+              <div className="flex gap-2 mb-2">
+                <a href="/api/export?format=docx" download
+                  className="flex-1 text-center text-sm font-mono bg-zinc-900 text-white py-2 rounded hover:bg-zinc-700 transition-colors"
+                  onClick={() => setDlOpen(false)}
+                >DOCX</a>
+                <a href="/api/export?format=pdf" download
+                  className="flex-1 text-center text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50 transition-colors"
+                  onClick={() => setDlOpen(false)}
+                >PDF</a>
+                <button onClick={() => setDlOpen(false)}
+                  className="px-3 text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50"
+                >✕</button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <a href="/cv.pdf" download
+                  className="flex-1 text-center text-sm font-mono bg-zinc-900 text-white py-2 rounded hover:bg-zinc-700 transition-colors"
+                  onClick={() => setDlOpen(false)}
+                >Download</a>
+                <button onClick={() => setDlOpen(false)}
+                  className="flex-1 text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50"
+                >Cancel</button>
+              </div>
+            )}
           </div>
         </div>
       )}
