@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { font-family: "Times New Roman", Times, serif; }
+  .font-mono { font-family: "Courier New", Courier, monospace; }
+  code, pre { font-family: "Courier New", Courier, monospace; }
+}
+
+@layer components {
+  .section-label {
+    @apply text-xs font-mono uppercase tracking-widest text-zinc-400 pb-2 mb-6 border-b border-zinc-100;
+  }
+  .card {
+    @apply bg-white border border-zinc-100 rounded-md p-5 hover:border-zinc-300 transition-colors;
+  }
+  .tag {
+    @apply text-xs font-mono border border-zinc-200 px-2 py-0.5 rounded text-zinc-500;
+  }
+}
