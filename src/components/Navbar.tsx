@@ -23,7 +23,7 @@ export default function Navbar() {
       <nav className="sticky top-0 z-40 border-b border-zinc-200 bg-white">
         <div className="max-w-4xl mx-auto px-6 flex items-center justify-between" style={{ height: 52 }}>
           <Link href="/" className="font-serif font-bold text-base tracking-tight text-zinc-900 flex-shrink-0">
-            A.B.
+            K.S
           </Link>
           <div className="hidden md:flex items-center">
             {NAV.map(({ href, label }) => (
