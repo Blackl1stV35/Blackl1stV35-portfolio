@@ -53,6 +53,34 @@ export async function readFileCached(filePath: string, ttl = 5000): Promise<stri
   const now = Date.now()
   const existing = cache.get(key)
   if (existing && existing.expiresAt > now) return existing.value as string
+  async function fetchGitHubFile(): Promise<string | null> {
+    const token = process.env.GITHUB_TOKEN
+    const owner = process.env.GITHUB_OWNER
+    const repo = process.env.GITHUB_REPO
+    const branch = process.env.GITHUB_BRANCH ?? 'master'
+    if (!token || !owner || !repo) return null
+
+    const repoPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/')
+    if (!repoPath || repoPath.startsWith('..')) return null
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${repoPath}?ref=${branch}`
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } })
+      if (!res.ok) return null
+      const json = await res.json()
+      if (!json?.content) return null
+      return Buffer.from(json.content, 'base64').toString('utf8')
+    } catch {
+      return null
+    }
+  }
+
+  const remote = await fetchGitHubFile().catch(() => null)
+  if (remote != null) {
+    cache.set(key, { value: remote, expiresAt: now + ttl })
+    return remote
+  }
+
   const raw = await fs.readFile(filePath, 'utf-8')
   cache.set(key, { value: raw, expiresAt: now + ttl })
   return raw

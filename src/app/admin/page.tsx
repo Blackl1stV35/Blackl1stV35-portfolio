@@ -223,6 +223,8 @@ export default function AdminPage() {
     if (res.ok) {
       setAuthorSaved(true)
       setTimeout(() => setAuthorSaved(false), 3000)
+      // attempt to trigger redeploy (no-op if not configured)
+      try { await fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }) } catch {}
     } else {
       const j = await res.json()
       alert('Error: ' + j.error)
@@ -242,6 +244,7 @@ export default function AdminPage() {
       // show saved briefly
       setAuthorSaved(true)
       setTimeout(() => setAuthorSaved(false), 3000)
+      try { await fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }) } catch {}
     } else {
       const j = await res.json()
       alert('Error: ' + j.error)
@@ -286,6 +289,7 @@ export default function AdminPage() {
         setEditingSlug(null)
         loadEntries(panel as CollectionName)
       }, 2500)
+      try { await fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }) } catch {}
     } else {
       const j = await res.json()
       alert('Error: ' + j.error)
