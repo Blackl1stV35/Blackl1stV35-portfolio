@@ -7,6 +7,7 @@ import {
   Header, Footer, PageNumber, NumberFormat,
 } from 'docx'
 import { getCollection } from './collections'
+import { readJSON } from './cache'
 import type { WorkEntry, ProjectEntry, PublicationEntry } from '@/types'
 
 // ── Colours ───────────────────────────────────────────────────────────────
@@ -210,15 +211,19 @@ function contactSection(a: Record<string, unknown>, footer: Footer) {
 
 // ── Main ──────────────────────────────────────────────────────────────────
 export async function buildPortfolioDOCX(): Promise<Buffer> {
-  const author: Record<string, unknown> = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), 'content', 'author.json'), 'utf-8')
-  )
-  const name   = String(author.name ?? 'Portfolio')
+  const author: Record<string, unknown> = await (async () => {
+    try {
+      return await readJSON(path.join(process.cwd(), 'content', 'author.json'))
+    } catch {
+      return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'content', 'author.json'), 'utf-8'))
+    }
+  })()
+  const name = String(author?.name ?? 'Portfolio')
   const footer = makeFooter(name)
 
-  const work         = getCollection<WorkEntry>('work')
-  const projects     = getCollection<ProjectEntry>('projects')
-  const publications = getCollection<PublicationEntry>('publications')
+  const work         = await getCollection<WorkEntry>('work')
+  const projects     = await getCollection<ProjectEntry>('projects')
+  const publications = await getCollection<PublicationEntry>('publications')
 
   const doc = new Document({
     creator: name,

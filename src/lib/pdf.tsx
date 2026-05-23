@@ -132,7 +132,7 @@ export function PortfolioPDF({ author, work, projects, publications }: Props) {
         <Text style={s.sectionLabel}>About</Text>
         <Text style={s.overviewBio}>{author.bio}</Text>
         {author.bio2 && <Text style={s.overviewBio}>{author.bio2}</Text>}
-        {author.tags && author.tags.length > 0 && (
+        {Array.isArray(author.tags) && author.tags.length > 0 && (
           <View style={s.tagRow}>
             {author.tags.map(t => <Text key={t} style={s.tag}>{t}</Text>)}
           </View>
@@ -169,7 +169,7 @@ export function PortfolioPDF({ author, work, projects, publications }: Props) {
               </View>
               <Text style={s.cardMeta}>{e.type}{e.repo ? `  ·  ${e.repo}` : ''}{e.stars != null ? `  ·  ★ ${e.stars}` : ''}</Text>
               {e.description && <Text style={s.cardDesc}>{e.description}</Text>}
-              {e.tags && e.tags.length > 0 && (
+              {Array.isArray(e.tags) && e.tags.length > 0 && (
                 <View style={s.cardTagRow}>
                   {e.tags.map(t => <Text key={t} style={s.tag}>{t}</Text>)}
                 </View>

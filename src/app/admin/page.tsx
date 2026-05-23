@@ -4,7 +4,7 @@ import { LogOut, Plus, Upload, CheckCircle } from 'lucide-react'
 import AvatarUpload from '@/components/AvatarUpload'
 
 type CollectionName = 'projects' | 'work' | 'publications' | 'books'
-type Panel = CollectionName | '_uploads' | '_author'
+type Panel = CollectionName | '_uploads' | '_author' | '_contact'
 
 const COLLECTIONS: CollectionName[] = ['projects', 'work', 'publications', 'books']
 
@@ -93,14 +93,27 @@ export default function AdminPage() {
   const [authorPhoto, setAuthorPhoto] = useState<string | null>(null)
   const [authorSaving, setAuthorSaving] = useState(false)
   const [authorSaved, setAuthorSaved]   = useState(false)
+  const [contactData, setContactData] = useState<Record<string, string>>({})
+  const [contactSaving, setContactSaving] = useState(false)
 
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [uploadDone, setUploadDone]         = useState<Record<string, boolean>>({})
+  const [entries, setEntries] = useState<Record<string, unknown>[]>([])
+  const [editingSlug, setEditingSlug] = useState<string | null>(null)
 
   useEffect(() => {
     const s = sessionStorage.getItem('admin_session')
     if (s) { setSession(s); setAuthed(true); loadAuthor() }
   }, [])
+
+  useEffect(() => {
+    if (COLLECTIONS.includes(panel as CollectionName)) {
+      loadEntries(panel as CollectionName)
+    } else {
+      setEntries([])
+      setEditingSlug(null)
+    }
+  }, [panel])
 
   async function loadAuthor() {
     try {
@@ -115,6 +128,57 @@ export default function AdminPage() {
         setAuthorPhoto(photo ?? null)
       }
     } catch {}
+  }
+
+  async function loadContact() {
+    try {
+      const res = await fetch('/api/contact-data')
+      if (res.ok) {
+        const data = await res.json()
+        const { formAction, ...rest } = data
+        setContactData({ ...rest, formAction: formAction ?? '' })
+      }
+    } catch {}
+  }
+
+  function parseArrayField(val: unknown): string[] {
+    if (!val) return []
+    if (Array.isArray(val)) return val.map(String).filter(Boolean)
+    if (typeof val === 'string') return val.split(',').map((s) => s.trim()).filter(Boolean)
+    return []
+  }
+
+  function formatValue(val: unknown): string {
+    if (Array.isArray(val)) return val.map(String).join(', ')
+    return val == null ? '' : String(val)
+  }
+
+  async function loadEntries(collection: CollectionName) {
+    try {
+      const res = await fetch(`/api/collections?collection=${collection}`)
+      if (res.ok) {
+        setEntries(await res.json())
+      }
+    } catch {}
+  }
+
+  async function loadEntry(slug: string) {
+    try {
+      const res = await fetch(`/api/collections?collection=${panel}&slug=${slug}`)
+      if (!res.ok) throw new Error('Entry not found')
+      const data = await res.json()
+      const form: Record<string, string> = {}
+      for (const [key, value] of Object.entries(data)) {
+        if (key === 'content') continue
+        form[key] = formatValue(value)
+      }
+      form._body = String(data.content ?? '')
+      setFormData(form)
+      setEditingSlug(slug)
+      setShowForm(true)
+    } catch (err) {
+      console.warn('Unable to load entry', err)
+    }
   }
 
   async function handleAuth() {
@@ -165,22 +229,84 @@ export default function AdminPage() {
     }
   }
 
-  async function saveEntry() {
-    setSaving(true)
-    const fields = { ...formData, date: new Date().toISOString().split('T')[0] }
-    const res = await fetch('/api/collections', {
+  async function saveContact() {
+    setContactSaving(true)
+    const payload = { ...contactData }
+    const res = await fetch('/api/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
-      body: JSON.stringify({ collection: panel, fields, content: formData._body ?? '' }),
+      body: JSON.stringify(payload),
     })
-    setSaving(false)
+    setContactSaving(false)
     if (res.ok) {
-      setSaved(true)
-      setTimeout(() => { setSaved(false); setShowForm(false); setFormData({}) }, 2500)
+      // show saved briefly
+      setAuthorSaved(true)
+      setTimeout(() => setAuthorSaved(false), 3000)
     } else {
       const j = await res.json()
       alert('Error: ' + j.error)
     }
+  }
+
+  async function deleteContact() {
+    if (!confirm('Delete contact information? This will clear contact.json.')) return
+    try {
+      const res = await fetch('/api/contact', { method: 'DELETE', headers: { Authorization: `Bearer ${session}` } })
+      if (res.ok) {
+        setContactData({})
+        setAuthorSaved(true)
+        setTimeout(() => setAuthorSaved(false), 3000)
+      } else {
+        const j = await res.json()
+        alert('Error: ' + j.error)
+      }
+    } catch (err) { console.warn(err) }
+  }
+
+  async function saveEntry() {
+    setSaving(true)
+    const typedFields = {
+      ...formData,
+      date: new Date().toISOString().split('T')[0],
+      tags: parseArrayField(formData.tags),
+      stack: parseArrayField(formData.stack),
+    }
+    const res = await fetch('/api/collections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
+      body: JSON.stringify({ collection: panel, slug: editingSlug ?? undefined, fields: typedFields, content: formData._body ?? '' }),
+    })
+    setSaving(false)
+    if (res.ok) {
+      setSaved(true)
+      setTimeout(() => {
+        setSaved(false)
+        setShowForm(false)
+        setFormData({})
+        setEditingSlug(null)
+        loadEntries(panel as CollectionName)
+      }, 2500)
+    } else {
+      const j = await res.json()
+      alert('Error: ' + j.error)
+    }
+  }
+
+  async function deleteEntry(slug: string) {
+    if (!confirm('Delete this entry? This will remove the MDX from the repository.')) return
+    try {
+      const res = await fetch('/api/collections', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
+        body: JSON.stringify({ collection: panel, slug }),
+      })
+      if (res.ok) {
+        loadEntries(panel as CollectionName)
+      } else {
+        const j = await res.json()
+        alert('Error deleting: ' + j.error)
+      }
+    } catch (err) { console.warn(err); alert('Network error') }
   }
 
   function simulateUpload(type: string) {
@@ -265,6 +391,7 @@ export default function AdminPage() {
         <aside className="w-44 bg-white border-r border-zinc-100 py-4 flex-shrink-0">
           <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Author</div>
           <SideLink label="Profile" active={panel === '_author'} onClick={() => { setPanel('_author'); setShowForm(false) }} />
+          <SideLink label="Contact" active={panel === '_contact'} onClick={() => { setPanel('_contact'); setShowForm(false); loadContact() }} />
           <div className="border-t border-zinc-100 mt-3 pt-3">
             <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Collections</div>
             {COLLECTIONS.map(c => (
@@ -322,15 +449,75 @@ export default function AdminPage() {
             </div>
           )}
 
+          {/* ── Contact panel ── */}
+          {panel === '_contact' && (
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-serif font-bold text-base">Contact settings</h2>
+                {authorSaved && <span className="text-xs font-mono text-green-600 flex items-center gap-1"><CheckCircle size={12} /> Saved &amp; committed</span>}
+              </div>
+
+              <div className="bg-white border border-zinc-200 rounded-md p-5 mb-4">
+                <div className="text-xs font-mono text-zinc-400 mb-4 uppercase tracking-widest">Contact links</div>
+                <div className="grid grid-cols-2 gap-3">
+                  {['email','github','linkedin','location','formAction'].map(k => (
+                    <div key={k} className={k === 'formAction' ? 'col-span-2' : ''}>
+                      <label className="block text-xs font-mono text-zinc-500 mb-1">{k === 'formAction' ? 'Form action (submit URL)' : (k.charAt(0).toUpperCase() + k.slice(1))}</label>
+                      <input type="text" value={contactData[k] ?? ''}
+                        onChange={e => setContactData(d => ({ ...d, [k]: e.target.value }))}
+                        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif focus:outline-none focus:border-zinc-400"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={saveContact} disabled={contactSaving}
+                  className="bg-zinc-900 text-white text-xs font-mono px-4 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                >{contactSaving ? 'Saving…' : 'Save & commit to GitHub'}</button>
+                <button onClick={deleteContact}
+                  className="text-xs font-mono border border-zinc-200 px-4 py-2 rounded hover:bg-zinc-50 transition-colors"
+                >Delete contact data</button>
+              </div>
+            </div>
+          )}
+
           {/* ── Collection panels ── */}
           {isCollection && (
             <div>
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-serif font-bold text-base">{(panel as string).charAt(0).toUpperCase() + (panel as string).slice(1)}</h2>
-                <button onClick={() => { setShowForm(!showForm); setFormData({}) }}
+                <button onClick={() => { setShowForm(!showForm); setFormData({}); setEditingSlug(null) }}
                   className="flex items-center gap-1.5 text-xs font-mono border border-zinc-200 px-3 py-1.5 rounded hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-colors"
                 ><Plus size={12} /> New entry</button>
               </div>
+
+              {entries.length > 0 ? (
+                <div className="mb-5 bg-white border border-zinc-100 rounded-md overflow-hidden">
+                  <div className="p-4 text-xs font-mono text-zinc-400 border-b border-zinc-50">
+                    Existing entries in {panel} — click Edit to load into the form.
+                  </div>
+                  {entries.map(entry => (
+                    <div key={String(entry.slug)} className="p-4 border-b border-zinc-100 flex items-start justify-between gap-4">
+                      <div>
+                        <div className="text-sm font-semibold">{String(entry.title ?? entry.slug)}</div>
+                        <div className="text-xs text-zinc-500">{String(entry.date ?? '')}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => loadEntry(String(entry.slug))}
+                          className="text-xs font-mono text-zinc-500 border border-zinc-200 px-3 py-1 rounded hover:bg-zinc-50 transition-colors"
+                        >Edit</button>
+                        <button onClick={() => deleteEntry(String(entry.slug))}
+                          className="text-xs font-mono text-red-600 border border-red-100 bg-red-50 px-3 py-1 rounded hover:bg-red-100 transition-colors"
+                        >Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mb-5 text-xs font-mono text-zinc-500">No existing entries found for this collection.</div>
+              )}
 
               {showForm && (
                 <div className="bg-white border border-zinc-200 rounded-md p-5 mb-5">
@@ -366,7 +553,7 @@ export default function AdminPage() {
           {panel === '_uploads' && (
             <div>
               <h2 className="font-serif font-bold text-base mb-5">CV &amp; Portfolio PDF</h2>
-              {(['cv', 'portfolio'] as const).map(type => (
+              {(['cv'] as const).map(type => (
                 <div key={type} className="mb-4">
                   <div onClick={() => simulateUpload(type)}
                     className="border border-dashed border-zinc-300 rounded-md p-8 text-center cursor-pointer hover:bg-zinc-50 bg-white mb-2 transition-colors"
@@ -374,7 +561,7 @@ export default function AdminPage() {
                     <Upload size={22} className="mx-auto text-zinc-300 mb-2" />
                     <div className="text-sm font-serif text-zinc-500">Upload {type === 'cv' ? 'CV / Resume' : 'Portfolio PDF'}</div>
                     <div className="text-xs font-mono text-zinc-400 mt-1">
-                      {type === 'cv' ? 'Replaces public/cv.pdf · served as /cv.pdf' : 'Vercel Blob · instant CDN URL · linked from Portfolio button'}
+                      {type === 'cv' ? 'Replaces public/cv.pdf · served as /cv.pdf' : ''}
                     </div>
                   </div>
                   {uploadProgress[type] != null && (
@@ -394,8 +581,8 @@ export default function AdminPage() {
               ))}
               <div className="mt-4 bg-zinc-50 border border-zinc-100 rounded p-4 text-xs font-mono text-zinc-400 leading-7">
                 CV → GitHub commit to public/cv.pdf → Vercel serves as /cv.pdf<br />
-                Portfolio → on-demand via /api/pdf (react-pdf, built from live content)<br />
-                Both available as download buttons in navbar
+                Portfolio → generated as DOCX only (PDF export removed)<br />
+                Download available in navbar
               </div>
             </div>
           )}

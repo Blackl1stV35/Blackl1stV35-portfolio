@@ -7,8 +7,8 @@ export const revalidate = 0
 
 
 
-export default function ProjectsPage() {
-  const entries = getCollection<ProjectEntry>('projects')
+export default async function ProjectsPage() {
+  const entries = await getCollection<ProjectEntry>('projects')
   return (
     <div>
       <div className="section-label">Projects</div>
@@ -26,7 +26,7 @@ export default function ProjectsPage() {
               {e.forks != null && <> · 🍴 {e.forks}</>}
             </div>
             <p className="text-sm text-zinc-600 leading-relaxed">{e.description}</p>
-            {e.tags && (
+            {Array.isArray(e.tags) && e.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {e.tags.map((t: string) => <span key={t} className="tag">{t}</span>)}
               </div>

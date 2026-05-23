@@ -1,4 +1,8 @@
 // GitHub Contents API — server-side only
+import fs from 'fs'
+import path from 'path'
+import { invalidate } from './cache'
+import { evictCollection } from './collections'
 
 function getEnv() {
   const token  = process.env.GITHUB_TOKEN
@@ -7,6 +11,16 @@ function getEnv() {
   const branch = process.env.GITHUB_BRANCH ?? 'master'
   if (!token || !owner || !repo) throw new Error('Missing GITHUB_TOKEN, GITHUB_OWNER, or GITHUB_REPO env vars')
   return { token, owner, repo, branch }
+}
+
+async function writeLocalFile(filePath: string, content: string) {
+  const localPath = path.join(process.cwd(), filePath)
+  try {
+    await fs.promises.mkdir(path.dirname(localPath), { recursive: true })
+    await fs.promises.writeFile(localPath, content, 'utf8')
+  } catch (err) {
+    console.warn('[github] local write skipped', filePath, err instanceof Error ? err.message : err)
+  }
 }
 
 async function getFileSHA(apiUrl: string, token: string): Promise<string | undefined> {
@@ -41,7 +55,18 @@ export async function deleteMDX({ collection, slug }: { collection: string; slug
     body: JSON.stringify({ message: `delete(${collection}): ${slug}`, sha, branch }),
   })
   if (!res.ok) throw new Error(`GitHub ${res.status}: ${await res.text()}`)
-  return res.json()
+  const result = await res.json()
+
+  try {
+    await fs.promises.unlink(path.join(process.cwd(), filePath))
+    // invalidate cache for this collection file
+    try { invalidate(path.join(process.cwd(), filePath)) } catch {}
+    try { evictCollection(collection as any) } catch {}
+  } catch {
+    // ignore missing or read-only filesystem errors
+  }
+
+  return result
 }
 
 export async function commitFile({ path: filePath, content, message }: {
@@ -62,5 +87,19 @@ export async function commitFile({ path: filePath, content, message }: {
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`GitHub ${res.status}: ${await res.text()}`)
-  return res.json()
+  const result = await res.json()
+
+  if (typeof content === 'string') {
+    await writeLocalFile(filePath, content)
+    try { invalidate(path.join(process.cwd(), filePath)) } catch {}
+    // if committed to collections, evict that collection
+    if (filePath.startsWith('collections/')) {
+      const parts = filePath.split('/')
+      if (parts.length >= 2) {
+        try { evictCollection(parts[1] as any) } catch {}
+      }
+    }
+  }
+
+  return result
 }

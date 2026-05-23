@@ -1,5 +1,5 @@
-import fs from 'fs'
 import path from 'path'
+import { readJSON } from '@/lib/cache'
 import StatusBadge from '@/components/StatusBadge'
 import type { StatusColor } from '@/types'
 
@@ -15,13 +15,9 @@ interface Author {
   photo?: string | null
 }
 
-function getAuthor(): Author {
+export default async function AboutPage() {
   const file = path.join(process.cwd(), 'content', 'author.json')
-  return JSON.parse(fs.readFileSync(file, 'utf-8'))
-}
-
-export default function AboutPage() {
-  const a = getAuthor()
+  const a = await readJSON<Author>(file).catch(() => ({} as Author))
   return (
     <div>
       <div className="section-label">Author</div>
@@ -32,7 +28,7 @@ export default function AboutPage() {
           <StatusBadge status={a.status} className="mb-4" />
           <p className="text-sm leading-relaxed text-zinc-600 mb-3">{a.bio}</p>
           {a.bio2 && <p className="text-sm leading-relaxed text-zinc-600">{a.bio2}</p>}
-          {a.tags?.length > 0 && (
+          {Array.isArray(a.tags) && a.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {a.tags.map(t => <span key={t} className="tag">{t}</span>)}
             </div>

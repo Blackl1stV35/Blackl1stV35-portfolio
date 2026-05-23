@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import GoogleTranslate, { loadGoogleTranslate } from './GoogleTranslate'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Download, FileText } from 'lucide-react'
@@ -19,6 +20,41 @@ export default function Navbar({ initials }: Props) {
   const pathname = usePathname()
   const [dlOpen, setDlOpen] = useState(false)
   const [dlType, setDlType] = useState<'cv' | 'portfolio'>('cv')
+  const [lang, setLang] = useState<'en'|'th'|'zh'>('en')
+  const [theme, setTheme] = useState<'bright'|'dark'>('bright')
+
+  useEffect(() => {
+    const l = (localStorage.getItem('site_lang') as 'en'|'th'|'zh') || 'en'
+    setLang(l)
+    const t = (localStorage.getItem('site_theme') as 'bright'|'dark') || 'bright'
+    setTheme(t)
+    if (t === 'dark') document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+  }, [])
+
+  async function openGoogleTranslate() {
+    try {
+      await loadGoogleTranslate()
+      const w = window as any
+      try {
+        if (typeof w._gt_show === 'function') {
+          w._gt_show()
+        } else if (typeof w._gt_click === 'function') {
+          w._gt_click()
+        }
+      } catch (err) {
+        console.warn('Google Translate trigger failed', err)
+      }
+    } catch (e) { console.warn('Google Translate load failed', e) }
+  }
+
+  function toggleTheme() {
+    const next = theme === 'bright' ? 'dark' : 'bright'
+    setTheme(next)
+    localStorage.setItem('site_theme', next)
+    if (next === 'dark') document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+  }
 
   return (
     <>
@@ -28,12 +64,20 @@ export default function Navbar({ initials }: Props) {
             {initials}
           </Link>
           <div className="hidden md:flex items-center">
-            {NAV.map(({ href, label }) => (
-              <Link key={href} href={href}
-                className={`px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors
-                  ${pathname === href ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-900'}`}
-              >{label}</Link>
-            ))}
+            {NAV.map(({ href, label }) => {
+              const translations: Record<string, Record<string,string>> = {
+                en: { About: 'About', Work: 'Work', Projects: 'Projects', Publications: 'Publications', Books: 'Books', Contact: 'Contact' },
+                th: { About: 'เกี่ยวกับ', Work: 'งาน', Projects: 'โครงการ', Publications: 'ผลงาน', Books: 'หนังสือ', Contact: 'ติดต่อ' },
+                zh: { About: '关于', Work: '工作', Projects: '项目', Publications: '出版物', Books: '书籍', Contact: '联系' },
+              }
+              const text = translations[lang][label] ?? label
+              return (
+                <Link key={href} href={href}
+                  className={`px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors
+                    ${pathname === href ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-900'}`}
+                >{text}</Link>
+              )
+            })}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => { setDlType('cv'); setDlOpen(true) }}
@@ -42,6 +86,15 @@ export default function Navbar({ initials }: Props) {
             <button onClick={() => { setDlType('portfolio'); setDlOpen(true) }}
               className="flex items-center gap-1 text-xs font-mono border border-zinc-200 px-2.5 py-1 rounded hover:bg-zinc-50 transition-colors"
             ><FileText size={12} /> Portfolio</button>
+            <GoogleTranslate />
+            <button onClick={openGoogleTranslate} onMouseEnter={() => { loadGoogleTranslate().catch(()=>{}) }}
+              title="Translate page"
+              className="text-xs font-mono border border-zinc-200 px-2 py-1 rounded hover:bg-zinc-50 transition-colors"
+            >Translate</button>
+            <button onClick={toggleTheme}
+              title="Toggle Bright / Dark"
+              className="text-xs font-mono border border-zinc-200 px-2 py-1 rounded hover:bg-zinc-50 transition-colors"
+            >{theme === 'bright' ? '🌞' : '🌙'}</button>
           </div>
         </div>
       </nav>
@@ -65,10 +118,6 @@ export default function Navbar({ initials }: Props) {
                   className="flex-1 text-center text-sm font-mono bg-zinc-900 text-white py-2 rounded hover:bg-zinc-700 transition-colors"
                   onClick={() => setDlOpen(false)}
                 >DOCX</a>
-                <a href="/api/export?format=pdf" download
-                  className="flex-1 text-center text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50 transition-colors"
-                  onClick={() => setDlOpen(false)}
-                >PDF</a>
                 <button onClick={() => setDlOpen(false)}
                   className="px-3 text-sm font-mono border border-zinc-200 py-2 rounded hover:bg-zinc-50"
                 >✕</button>

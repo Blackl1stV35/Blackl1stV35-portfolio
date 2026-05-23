@@ -1,5 +1,5 @@
-import fs from 'fs'
 import path from 'path'
+import { readJSON } from '@/lib/cache'
 
 export const revalidate = 0
 
@@ -7,14 +7,17 @@ interface Author {
   name?: string; email?: string; github?: string; linkedin?: string; location?: string
 }
 
-function getAuthor(): Author {
+async function getContact(): Promise<Author & { formAction?: string }> {
   try {
-    return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'content', 'author.json'), 'utf-8'))
-  } catch { return {} }
+    const contactPath = path.join(process.cwd(), 'content', 'contact.json')
+    const data = await readJSON(contactPath).catch(() => null)
+    if (data) return data as any
+    return await readJSON(path.join(process.cwd(), 'content', 'author.json')).catch(() => ({} as any))
+  } catch { return {} as any }
 }
 
-export default function ContactPage() {
-  const a = getAuthor()
+export default async function ContactPage() {
+  const a = await getContact()
 
   const contacts = [
     a.email    && { label: 'Email',    val: a.email,    href: `mailto:${a.email}` },
@@ -40,7 +43,7 @@ export default function ContactPage() {
       )}
       <div className="border-t border-zinc-100 pt-6">
         <div className="text-xs font-mono text-zinc-400 mb-4">Send a message</div>
-        <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST" className="space-y-4 max-w-lg">
+        <form action={a.formAction ?? 'https://formspree.io/f/YOUR_FORM_ID'} method="POST" className="space-y-4 max-w-lg">
           <div>
             <label className="block text-xs font-mono text-zinc-500 mb-1">Name</label>
             <input name="name" type="text" required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif focus:outline-none focus:border-zinc-400" />

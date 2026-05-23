@@ -42,3 +42,17 @@ body { top: 0 !important; }
 }
 /* Dropdown renders in its own iframe — ensure it's always on top */
 .goog-te-menu-frame { z-index: 99999 !important; }
+
+/* ── Minimal Dark Mode Overrides (class 'dark' on <html>) ── */
+.dark body { background-color: #071024; color: #e6eef8 }
+.dark .bg-white { background-color: #071326 !important }
+.dark .bg-zinc-50 { background-color: #04101a !important }
+.dark .text-zinc-900 { color: #e6eef8 !important }
+.dark .text-zinc-500 { color: #9fb0bf !important }
+.dark .text-zinc-400 { color: #7f95a3 !important }
+.dark .border-zinc-100 { border-color: #0f1720 !important }
+.dark .border-zinc-200 { border-color: #15202a !important }
+.dark .bg-green-50 { background-color: #0b2b14 !important }
+.dark .bg-zinc-900 { background-color: #06202a !important }
+.dark .bg-zinc-900.text-white { color: #e6eef8 !important }
+

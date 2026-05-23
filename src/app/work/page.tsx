@@ -7,8 +7,8 @@ export const revalidate = 0
 
 
 
-export default function WorkPage() {
-  const entries = getCollection<WorkEntry>('work')
+export default async function WorkPage() {
+  const entries = await getCollection<WorkEntry>('work')
   return (
     <div>
       <div className="section-label">Experience</div>
@@ -24,7 +24,7 @@ export default function WorkPage() {
               <StatusBadge status={e.status} variant="work" />
             </div>
             <p className="text-sm text-zinc-600 leading-relaxed">{e.description}</p>
-            {e.stack && (
+            {Array.isArray(e.stack) && e.stack.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {e.stack.map((t: string) => <span key={t} className="tag">{t}</span>)}
               </div>

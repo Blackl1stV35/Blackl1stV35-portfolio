@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { commitMDX, deleteMDX } from '@/lib/github'
 import { buildMDX, slugify } from '@/lib/mdx'
+import { getCollection, getEntry } from '@/lib/collections'
+import type { CollectionEntry, CollectionName } from '@/types'
 
 function authorized(req: NextRequest): boolean {
   // Session token is passed in Authorization header: "Bearer <session>"
@@ -8,6 +10,25 @@ function authorized(req: NextRequest): boolean {
   // Simplified: any non-empty Bearer token that starts with the base64 pattern is accepted.
   const auth = req.headers.get('authorization') ?? ''
   return auth.startsWith('Bearer ') && auth.length > 20
+}
+
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  const collection = url.searchParams.get('collection')
+  const slug = url.searchParams.get('slug')
+
+  if (!collection) {
+    return NextResponse.json({ error: 'Missing collection parameter' }, { status: 400 })
+  }
+
+  if (slug) {
+    const entry = await getEntry<CollectionEntry>(collection as CollectionName, slug)
+    if (!entry) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    return NextResponse.json(entry)
+  }
+
+  const entries = await getCollection<CollectionEntry>(collection as CollectionName)
+  return NextResponse.json(entries)
 }
 
 export async function POST(req: NextRequest) {

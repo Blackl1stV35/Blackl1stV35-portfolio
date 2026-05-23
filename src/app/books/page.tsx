@@ -7,8 +7,8 @@ export const revalidate = 0
 
 
 
-export default function BooksPage() {
-  const entries = getCollection<BookEntry>('books')
+export default async function BooksPage() {
+  const entries = await getCollection<BookEntry>('books')
   return (
     <div>
       <div className="section-label">Reading List</div>
