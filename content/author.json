@@ -1,23 +1,20 @@
 {
   "name": "Kanokphan Sirithienthong",
-  "title": "Software Engineer · Researcher · Writer",
+  "title": "Economics Student",
   "status": "green",
   "statusLabel": "Available for work",
-  "bio": "I build systems at the intersection of distributed computing and human-centered design. Currently pursuing research in applied machine learning. Previously worked across fintech and healthtech.",
-  "bio2": "I believe good software is indistinguishable from good writing — precise, purposeful, and kind to its reader.",
-  "degree1": "MSc Computer Science",
-  "degree2": "BSc Mathematics",
+  "bio": "3rd year Economics student, like being initiator, leading team with care; like setting workflow systematic. Highly productive person and self-learning in cross-domain studies. Interested in business-technology integration. Fast learner while concerning balanceness. Capable of Thai-English professional communication. ",
+  "bio2": "",
+  "degree1": "Bachelor of Economics",
+  "degree2": "",
   "github": "github.com/Blackl1stV35",
-  "email": "you@example.com",
-  "linkedin": "linkedin.com/in/yourusername",
+  "email": "kanokphan.s@ku.th",
+  "linkedin": "https://www.linkedin.com/in/kanokphan-sirithienthong-034787230/",
   "location": "Bangkok, Thailand",
   "tags": [
-    "Python",
-    "TypeScript",
-    "Distributed Systems",
-    "ML",
-    "Bangkok",
-    "TH"
+    "FinTech",
+    "AI&ML",
+    "Business Economics"
   ],
   "photo": null
 }
