@@ -12,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        {/* Prevent Google's own translate banner from auto-triggering */}
         <meta name="google" content="notranslate" />
       </head>
       <body className="bg-zinc-50 text-zinc-900 antialiased">
@@ -26,12 +27,43 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </footer>
+
+        {/*
+          Google Translate widget — fixed bottom-right, outside nav entirely.
+          The nav has a mount point (#google_translate_element) but the actual
+          dropdown renders in a fixed frame so it never clips under nav z-index.
+        */}
+        <div
+          id="google_translate_element"
+          style={{
+            position: 'fixed',
+            bottom: '16px',
+            right: '16px',
+            zIndex: 9999,
+            background: 'white',
+            borderRadius: '6px',
+            border: '0.5px solid #e4e4e7',
+            padding: '4px 8px',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+          }}
+        />
+
         <Script id="gt-init" strategy="afterInteractive">{`
-          function googleTranslateElementInit(){
-            new google.translate.TranslateElement({pageLanguage:'en',layout:google.translate.TranslateElement.InlineLayout.SIMPLE},'google_translate_element');
+          function googleTranslateElementInit() {
+            new google.translate.TranslateElement(
+              {
+                pageLanguage: 'en',
+                layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay: false,
+              },
+              'google_translate_element'
+            );
           }
         `}</Script>
-        <Script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" strategy="afterInteractive" />
+        <Script
+          src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )

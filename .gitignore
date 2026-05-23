@@ -4,4 +4,6 @@ node_modules/
 .next/
 out/
 .vercel/
-*.pdf
+
+.vercel
+.env*
