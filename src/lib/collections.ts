@@ -33,9 +33,14 @@ export async function getCollection<T extends BaseEntry>(name: CollectionName): 
   const entries: T[] = []
   for (const file of files.filter(f => f.endsWith('.mdx') || f.endsWith('.md'))) {
     const filePath = path.join(dir, file)
-    const raw = await readFileCached(filePath, 10000)
-    const { data, content } = matter(raw)
-    entries.push(normalizeEntry({ slug: file.replace(/\.mdx?$/, ''), content, ...data } as T))
+    try {
+      const raw = await readFileCached(filePath, 10000)
+      const { data, content } = matter(raw)
+      entries.push(normalizeEntry({ slug: file.replace(/\.mdx?$/, ''), content, ...data } as T))
+    } catch (err) {
+      console.warn(`[collections] Failed to parse ${file}:`, err instanceof Error ? err.message : err)
+      // skip malformed entries
+    }
   }
   return entries.sort((a, b) => {
     if (!a.date || !b.date) return 0
@@ -49,9 +54,14 @@ export async function getEntry<T extends BaseEntry>(name: CollectionName, slug: 
   let target: string | null = null
   try { await fs.promises.access(file); target = file } catch { try { await fs.promises.access(fallback); target = fallback } catch {} }
   if (!target) return null
-  const raw = await readFileCached(target, 10000)
-  const { data, content } = matter(raw)
-  return normalizeEntry({ slug, content, ...data } as T)
+  try {
+    const raw = await readFileCached(target, 10000)
+    const { data, content } = matter(raw)
+    return normalizeEntry({ slug, content, ...data } as T)
+  } catch (err) {
+    console.warn(`[collections] Failed to parse entry ${slug}:`, err instanceof Error ? err.message : err)
+    return null
+  }
 }
 
 export function evictCollection(name: CollectionName) {
