@@ -14,8 +14,10 @@ function normalizeArray(val: unknown): string[] {
 }
 
 function normalizeEntry<T extends BaseEntry>(entry: T): T {
+  const validStatus = (s: unknown): s is 'green' | 'yellow' | 'red' => s === 'green' || s === 'yellow' || s === 'red'
   return {
     ...entry,
+    status: validStatus(entry.status) ? entry.status : 'green',
     tags: normalizeArray((entry as any).tags),
     stack: normalizeArray((entry as any).stack),
   } as T

@@ -23,13 +23,17 @@ interface Props {
 }
 
 export default function StatusBadge({ status, variant = 'default', className = '' }: Props) {
-  const { bg, text, dot } = config[status]
+  const validStatus = (status && (status === 'green' || status === 'yellow' || status === 'red')) ? status : 'green'
+  if (!status || !config[status]) {
+    console.warn('[StatusBadge] Invalid status value:', status, 'falling back to green')
+  }
+  const { bg, text, dot } = config[validStatus]
 
   const label =
-    variant === 'work'        ? (workLabels[status] ?? config[status].label) :
-    variant === 'publication' ? (pubLabels[status]  ?? config[status].label) :
-    variant === 'book'        ? (bookLabels[status] ?? config[status].label) :
-    config[status].label
+    variant === 'work'        ? (workLabels[validStatus] ?? config[validStatus].label) :
+    variant === 'publication' ? (pubLabels[validStatus]  ?? config[validStatus].label) :
+    variant === 'book'        ? (bookLabels[validStatus] ?? config[validStatus].label) :
+    config[validStatus].label
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-semibold ${bg} ${text} ${className}`}>

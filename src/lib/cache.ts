@@ -39,9 +39,30 @@ export async function readJSON<T = any>(filePath: string, ttl = 5000): Promise<T
     }
   }
 
+  // In production, try GitHub first to get latest committed content
+  // In development, try local first for faster iteration
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (!isDev) {
+    const remote = await fetchGitHubJSON().catch(() => null)
+    if (remote != null) {
+      cache.set(key, { value: remote, expiresAt: now + ttl })
+      return remote
+    }
+  }
+
   try {
-    const parsed = await fetchGitHubJSON().catch(() => null) ?? JSON.parse(await fs.readFile(filePath, 'utf-8')) as T
+    const parsed = JSON.parse(await fs.readFile(filePath, 'utf-8')) as T
     cache.set(key, { value: parsed, expiresAt: now + ttl })
+
+    // In production, also try GitHub as a background refresh
+    if (!isDev) {
+      const remote = await fetchGitHubJSON().catch(() => null)
+      if (remote != null && JSON.stringify(remote) !== JSON.stringify(parsed)) {
+        cache.set(key, { value: remote, expiresAt: now + ttl })
+      }
+    }
+
     return parsed
   } catch (err) {
     throw err
@@ -53,6 +74,7 @@ export async function readFileCached(filePath: string, ttl = 5000): Promise<stri
   const now = Date.now()
   const existing = cache.get(key)
   if (existing && existing.expiresAt > now) return existing.value as string
+
   async function fetchGitHubFile(): Promise<string | null> {
     const token = process.env.GITHUB_TOKEN
     const owner = process.env.GITHUB_OWNER
@@ -75,14 +97,29 @@ export async function readFileCached(filePath: string, ttl = 5000): Promise<stri
     }
   }
 
-  const remote = await fetchGitHubFile().catch(() => null)
-  if (remote != null) {
-    cache.set(key, { value: remote, expiresAt: now + ttl })
-    return remote
+  // In production (vercel), try GitHub first to get latest committed content
+  // In development, try local first for faster iteration
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (!isDev) {
+    const remote = await fetchGitHubFile().catch(() => null)
+    if (remote != null) {
+      cache.set(key, { value: remote, expiresAt: now + ttl })
+      return remote
+    }
   }
 
   const raw = await fs.readFile(filePath, 'utf-8')
   cache.set(key, { value: raw, expiresAt: now + ttl })
+
+  // In production, also try GitHub as a background refresh after reading local
+  if (!isDev) {
+    const remote = await fetchGitHubFile().catch(() => null)
+    if (remote != null && remote !== raw) {
+      cache.set(key, { value: remote, expiresAt: now + ttl })
+    }
+  }
+
   return raw
 }
 
