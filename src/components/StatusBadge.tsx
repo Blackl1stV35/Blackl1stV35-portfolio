@@ -20,9 +20,10 @@ interface Props {
   status: StatusColor
   variant?: 'default' | 'work' | 'publication' | 'book'
   className?: string
+  customLabel?: string
 }
 
-export default function StatusBadge({ status, variant = 'default', className = '' }: Props) {
+export default function StatusBadge({ status, variant = 'default', className = '', customLabel }: Props) {
   const validStatus = (status && (status === 'green' || status === 'yellow' || status === 'red')) ? status : 'green'
   if (!status || !config[status]) {
     console.warn('[StatusBadge] Invalid status value:', status, 'falling back to green')
@@ -30,6 +31,7 @@ export default function StatusBadge({ status, variant = 'default', className = '
   const { bg, text, dot } = config[validStatus]
 
   const label =
+    customLabel ? customLabel :
     variant === 'work'        ? (workLabels[validStatus] ?? config[validStatus].label) :
     variant === 'publication' ? (pubLabels[validStatus]  ?? config[validStatus].label) :
     variant === 'book'        ? (bookLabels[validStatus] ?? config[validStatus].label) :
