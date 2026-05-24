@@ -11,6 +11,8 @@ const NAV = [
   { href: '/projects',     label: 'Projects'     },
   { href: '/publications', label: 'Publications' },
   { href: '/books',        label: 'Books'        },
+  { href: '/activity',     label: 'Activity'     },
+  { href: '/achievement',  label: 'Achievement'  },
   { href: '/contact',      label: 'Contact'      },
 ]
 
@@ -66,9 +68,9 @@ export default function Navbar({ initials }: Props) {
           <div className="hidden md:flex items-center">
             {NAV.map(({ href, label }) => {
               const translations: Record<string, Record<string,string>> = {
-                en: { About: 'About', Work: 'Work', Projects: 'Projects', Publications: 'Publications', Books: 'Books', Contact: 'Contact' },
-                th: { About: 'เกี่ยวกับ', Work: 'งาน', Projects: 'โครงการ', Publications: 'ผลงาน', Books: 'หนังสือ', Contact: 'ติดต่อ' },
-                zh: { About: '关于', Work: '工作', Projects: '项目', Publications: '出版物', Books: '书籍', Contact: '联系' },
+                en: { About: 'About', Work: 'Work', Projects: 'Projects', Publications: 'Publications', Books: 'Books', Activity: 'Activity', Achievement: 'Achievement', Contact: 'Contact' },
+                th: { About: 'เกี่ยวกับ', Work: 'งาน', Projects: 'โครงการ', Publications: 'ผลงาน', Books: 'หนังสือ', Activity: 'กิจกรรม', Achievement: 'ความสำเร็จ', Contact: 'ติดต่อ' },
+                zh: { About: '关于', Work: '工作', Projects: '项目', Publications: '出版物', Books: '书籍', Activity: '活动', Achievement: '成就', Contact: '联系' },
               }
               const text = translations[lang][label] ?? label
               return (

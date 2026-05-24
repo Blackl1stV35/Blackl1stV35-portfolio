@@ -52,5 +52,20 @@ export interface BookEntry extends BaseEntry {
   cover?: string
 }
 
-export type CollectionEntry = ProjectEntry | WorkEntry | PublicationEntry | BookEntry
-export type CollectionName = 'projects' | 'work' | 'publications' | 'books'
+export interface ActivityEntry extends BaseEntry {
+  type: 'talk' | 'workshop' | 'competition' | 'volunteer' | 'conference'
+  organiser?: string
+  role?: 'speaker' | 'participant' | 'organiser'
+  location?: string
+  url?: string
+}
+
+export interface AchievementEntry extends BaseEntry {
+  type: 'award' | 'certification' | 'scholarship' | 'honour' | 'ranking'
+  issuer?: string
+  expiry?: string
+  credential_url?: string
+}
+
+export type CollectionEntry = ProjectEntry | WorkEntry | PublicationEntry | BookEntry | ActivityEntry | AchievementEntry
+export type CollectionName = 'projects' | 'work' | 'publications' | 'books' | 'activity' | 'achievement'

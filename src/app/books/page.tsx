@@ -22,7 +22,8 @@ export default async function BooksPage() {
               <div className="text-xs font-bold font-serif leading-tight mb-0.5">{e.title}</div>
               <div className="text-xs font-mono text-zinc-400 mb-2">{e.author}</div>
               <StatusBadge status={e.status} variant="book" />
-              {e.notes && <p className="text-xs text-zinc-500 mt-2 leading-relaxed line-clamp-2">{e.notes}</p>}
+              {e.description && <p className="text-sm text-zinc-600 mt-3 leading-relaxed">{e.description}</p>}
+              {e.notes && <p className="text-xs text-zinc-500 mt-2 leading-relaxed">{e.notes}</p>}
             </div>
           </div>
         ))}

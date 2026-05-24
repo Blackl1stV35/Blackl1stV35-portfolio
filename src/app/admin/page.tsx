@@ -3,10 +3,10 @@ import { useState, useEffect } from 'react'
 import { LogOut, Plus, Upload, CheckCircle } from 'lucide-react'
 import AvatarUpload from '@/components/AvatarUpload'
 
-type CollectionName = 'projects' | 'work' | 'publications' | 'books'
+type CollectionName = 'projects' | 'work' | 'publications' | 'books' | 'activity' | 'achievement'
 type Panel = CollectionName | '_uploads' | '_author' | '_contact'
 
-const COLLECTIONS: CollectionName[] = ['projects', 'work', 'publications', 'books']
+const COLLECTIONS: CollectionName[] = ['projects', 'work', 'publications', 'books', 'activity', 'achievement']
 
 type FieldDef = { key: string; label: string; type: string; options?: string[] }
 
@@ -55,6 +55,33 @@ const FIELDS: Record<CollectionName, FieldDef[]> = {
     { key: 'year',        label: 'Year',                type: 'text' },
     { key: 'rating',      label: 'Rating',              type: 'select', options: ['1','2','3','4','5'] },
     { key: 'notes',       label: 'Notes',               type: 'textarea' },
+    PICTURE_FIELD,
+  ],
+
+  activity: [
+    { key: 'title',       label: 'Title *',             type: 'text' },
+    { key: 'type',        label: 'Type *',              type: 'select', options: ['talk','workshop','competition','volunteer','conference'] },
+    { key: 'status',      label: 'Status *',            type: 'select', options: ['green','yellow','red'] },
+    { key: 'organiser',   label: 'Organiser',           type: 'text' },
+    { key: 'role',        label: 'Role',                type: 'select', options: ['speaker','participant','organiser'] },
+    { key: 'location',    label: 'Location',            type: 'text' },
+    { key: 'date',        label: 'Date',                type: 'text' },
+    { key: 'url',         label: 'URL',                 type: 'text' },
+    { key: 'description', label: 'Description',         type: 'textarea' },
+    { key: 'tags',        label: 'Tags (comma-sep)',     type: 'text' },
+    PICTURE_FIELD,
+  ],
+
+  achievement: [
+    { key: 'title',          label: 'Title *',           type: 'text' },
+    { key: 'type',           label: 'Type *',            type: 'select', options: ['award','certification','scholarship','honour','ranking'] },
+    { key: 'status',         label: 'Status *',          type: 'select', options: ['green','yellow','red'] },
+    { key: 'issuer',         label: 'Issuer',            type: 'text' },
+    { key: 'date',           label: 'Date',              type: 'text' },
+    { key: 'expiry',         label: 'Expiry',            type: 'text' },
+    { key: 'credential_url', label: 'Credential URL',    type: 'text' },
+    { key: 'description',    label: 'Description',       type: 'textarea' },
+    { key: 'tags',           label: 'Tags (comma-sep)',  type: 'text' },
     PICTURE_FIELD,
   ],
 }
