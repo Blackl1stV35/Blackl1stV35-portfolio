@@ -7,7 +7,7 @@
 const STATUS = {
   green:  { label: 'Active',       variants: ['active', 'published', 'current', 'read'] },
   yellow: { label: 'In Progress',  variants: ['in-progress', 'under-review', 'ongoing', 'reading'] },
-  red:    { label: 'Archived',     variants: ['archived', 'discontinued', 'retracted', 'interested'] },
+  red:    { label: 'Archived',     variants: ['archived', 'discontinued', 'retracted', 'interested', 'expired'] },
 }
 
 const GLOBAL_FIELDS = [
@@ -86,10 +86,10 @@ const COLLECTIONS = {
     icon: 'Activity',
     fields: [
       ...GLOBAL_FIELDS,
-      { key: 'type',        type: 'select',   required: true,  options: ['talk', 'workshop', 'competition', 'volunteer', 'conference'] },
+      { key: 'type',        type: 'select',   required: true,  options: ['talk', 'workshop', 'competition', 'volunteer', 'conference', 'hackathon', 'event'] },
       { key: 'organiser',   type: 'text',     required: false },
+      { key: 'role',        type: 'select',   required: false, options: ['speaker', 'participant', 'organiser', 'mentor', 'judge', 'volunteer'] },
       { key: 'location',    type: 'text',     required: false },
-      { key: 'role',        type: 'select',   required: false, options: ['speaker', 'participant', 'organiser'] },
       { key: 'url',         type: 'text',     required: false, placeholder: 'https://…' },
     ],
   },
@@ -99,9 +99,9 @@ const COLLECTIONS = {
     icon: 'Award',
     fields: [
       ...GLOBAL_FIELDS,
-      { key: 'type',           type: 'select',   required: true,  options: ['award', 'certification', 'scholarship', 'honour', 'ranking'] },
+      { key: 'type',           type: 'select',   required: true, options: ['award', 'certification', 'scholarship', 'honour', 'ranking', 'grant'] },
       { key: 'issuer',         type: 'text',     required: false },
-      { key: 'expiry',         type: 'date',     required: false },
+      { key: 'expiry',         type: 'text',     required: false, placeholder: 'Dec 2027 or N/A' },
       { key: 'credential_url', type: 'text',     required: false, placeholder: 'https://…' },
     ],
   },
