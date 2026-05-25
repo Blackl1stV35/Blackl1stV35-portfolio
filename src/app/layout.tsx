@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/Navbar'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import path from 'path'
 import { readJSON } from '@/lib/cache'
 
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         </footer>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
