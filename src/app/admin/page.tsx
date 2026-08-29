@@ -373,7 +373,7 @@ export default function AdminPage() {
     )
     if (f.type === 'select') return (
       <select value={data[f.key] ?? ''} onChange={e => set(f.key, e.target.value)}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif focus:outline-none focus:border-zinc-400"
+        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif bg-white text-zinc-900 focus:outline-none focus:border-zinc-400"
       >
         <option value="">— select —</option>
         {f.options?.map(o => <option key={o} value={o}>{o}</option>)}
@@ -382,13 +382,13 @@ export default function AdminPage() {
     if (f.type === 'textarea') return (
       <textarea rows={3} value={data[f.key] ?? ''}
         onChange={e => set(f.key, e.target.value)}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif resize-none focus:outline-none focus:border-zinc-400"
+        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif bg-white text-zinc-900 resize-none focus:outline-none focus:border-zinc-400"
       />
     )
     return (
       <input type="text" value={data[f.key] ?? ''}
         onChange={e => set(f.key, e.target.value)}
-        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif focus:outline-none focus:border-zinc-400"
+        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif bg-white text-zinc-900 focus:outline-none focus:border-zinc-400"
       />
     )
   }
@@ -402,7 +402,7 @@ export default function AdminPage() {
         <input type="password" value={token}
           onChange={e => setToken(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !locked && handleAuth()}
-          className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-mono mb-1 focus:outline-none focus:border-zinc-400"
+          className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-mono mb-1 bg-white text-zinc-900 focus:outline-none focus:border-zinc-400"
           placeholder="Enter token" autoComplete="off"
         />
         {error && <p className="text-xs font-mono text-red-600 mb-2">{error}</p>}
@@ -506,7 +506,7 @@ export default function AdminPage() {
                       <label className="block text-xs font-mono text-zinc-500 mb-1">{k === 'formAction' ? 'Form action (submit URL)' : (k.charAt(0).toUpperCase() + k.slice(1))}</label>
                       <input type="text" value={contactData[k] ?? ''}
                         onChange={e => setContactData(d => ({ ...d, [k]: e.target.value }))}
-                        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif focus:outline-none focus:border-zinc-400"
+                        className="w-full border border-zinc-200 rounded px-2 py-1.5 text-sm font-serif bg-white text-zinc-900 focus:outline-none focus:border-zinc-400"
                       />
                     </div>
                   ))}
