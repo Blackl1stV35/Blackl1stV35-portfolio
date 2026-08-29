@@ -46,15 +46,15 @@ export default async function ContactPage() {
         <form action={a.formAction ?? 'https://formspree.io/f/YOUR_FORM_ID'} method="POST" className="space-y-4 max-w-lg">
           <div>
             <label className="block text-xs font-mono text-zinc-500 mb-1">Name</label>
-            <input name="name" type="text" required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif focus:outline-none focus:border-zinc-400" />
+            <input name="name" type="text" required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif bg-white text-zinc-900 focus:outline-none focus:border-zinc-400" />
           </div>
           <div>
             <label className="block text-xs font-mono text-zinc-500 mb-1">Email</label>
-            <input name="email" type="email" required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif focus:outline-none focus:border-zinc-400" />
+            <input name="email" type="email" required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif bg-white text-zinc-900 focus:outline-none focus:border-zinc-400" />
           </div>
           <div>
             <label className="block text-xs font-mono text-zinc-500 mb-1">Message</label>
-            <textarea name="message" rows={4} required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif resize-none focus:outline-none focus:border-zinc-400" />
+            <textarea name="message" rows={4} required className="w-full border border-zinc-200 rounded px-3 py-2 text-sm font-serif bg-white text-zinc-900 resize-none focus:outline-none focus:border-zinc-400" />
           </div>
           <button type="submit" className="bg-zinc-900 text-white text-sm font-serif px-5 py-2 rounded hover:bg-zinc-700 transition-colors">
             Send Message

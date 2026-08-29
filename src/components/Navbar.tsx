@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import GoogleTranslate, { loadGoogleTranslate } from './GoogleTranslate'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Download, FileText } from 'lucide-react'
@@ -22,33 +21,14 @@ export default function Navbar({ initials }: Props) {
   const pathname = usePathname()
   const [dlOpen, setDlOpen] = useState(false)
   const [dlType, setDlType] = useState<'cv' | 'portfolio'>('cv')
-  const [lang, setLang] = useState<'en'|'th'|'zh'>('en')
   const [theme, setTheme] = useState<'bright'|'dark'>('bright')
 
   useEffect(() => {
-    const l = (localStorage.getItem('site_lang') as 'en'|'th'|'zh') || 'en'
-    setLang(l)
     const t = (localStorage.getItem('site_theme') as 'bright'|'dark') || 'bright'
     setTheme(t)
     if (t === 'dark') document.documentElement.classList.add('dark')
     else document.documentElement.classList.remove('dark')
   }, [])
-
-  async function openGoogleTranslate() {
-    try {
-      await loadGoogleTranslate()
-      const w = window as any
-      try {
-        if (typeof w._gt_show === 'function') {
-          w._gt_show()
-        } else if (typeof w._gt_click === 'function') {
-          w._gt_click()
-        }
-      } catch (err) {
-        console.warn('Google Translate trigger failed', err)
-      }
-    } catch (e) { console.warn('Google Translate load failed', e) }
-  }
 
   function toggleTheme() {
     const next = theme === 'bright' ? 'dark' : 'bright'
@@ -66,20 +46,12 @@ export default function Navbar({ initials }: Props) {
             {initials}
           </Link>
           <div className="hidden md:flex items-center">
-            {NAV.map(({ href, label }) => {
-              const translations: Record<string, Record<string,string>> = {
-                en: { About: 'About', Work: 'Work', Projects: 'Projects', Publications: 'Publications', Books: 'Books', Activity: 'Activity', Achievement: 'Achievement', Contact: 'Contact' },
-                th: { About: 'เกี่ยวกับ', Work: 'งาน', Projects: 'โครงการ', Publications: 'ผลงาน', Books: 'หนังสือ', Activity: 'กิจกรรม', Achievement: 'ความสำเร็จ', Contact: 'ติดต่อ' },
-                zh: { About: '关于', Work: '工作', Projects: '项目', Publications: '出版物', Books: '书籍', Activity: '活动', Achievement: '成就', Contact: '联系' },
-              }
-              const text = translations[lang][label] ?? label
-              return (
-                <Link key={href} href={href}
-                  className={`px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors
-                    ${pathname === href ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-900'}`}
-                >{text}</Link>
-              )
-            })}
+            {NAV.map(({ href, label }) => (
+              <Link key={href} href={href}
+                className={`px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors
+                  ${pathname === href ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-900'}`}
+              >{label}</Link>
+            ))}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => { setDlType('cv'); setDlOpen(true) }}
@@ -88,11 +60,6 @@ export default function Navbar({ initials }: Props) {
             <button onClick={() => { setDlType('portfolio'); setDlOpen(true) }}
               className="flex items-center gap-1 text-xs font-mono border border-zinc-200 px-2.5 py-1 rounded hover:bg-zinc-50 transition-colors"
             ><FileText size={12} /> Portfolio</button>
-            <GoogleTranslate />
-            <button onClick={openGoogleTranslate} onMouseEnter={() => { loadGoogleTranslate().catch(()=>{}) }}
-              title="Translate page"
-              className="text-xs font-mono border border-zinc-200 px-2 py-1 rounded hover:bg-zinc-50 transition-colors"
-            >Translate</button>
             <button onClick={toggleTheme}
               title="Toggle Bright / Dark"
               className="text-xs font-mono border border-zinc-200 px-2 py-1 rounded hover:bg-zinc-50 transition-colors"

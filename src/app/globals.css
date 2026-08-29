@@ -21,28 +21,6 @@
   }
 }
 
-/* ── Google Translate ────────────────────────────────────────────────────── */
-/* Suppress the injected top banner & body shift */
-.skiptranslate { display: none !important; }
-body { top: 0 !important; }
-
-/* Style the widget button rendered inside #google_translate_element */
-#google_translate_element .goog-te-gadget-simple {
-  border: 1px solid #d4d4d8 !important;
-  border-radius: 6px !important;
-  padding: 6px 10px !important;
-  font-size: 12px !important;
-  background: #fff !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  cursor: pointer;
-}
-#google_translate_element .goog-te-gadget-simple span {
-  color: #3f3f46 !important;
-  font-size: 12px !important;
-}
-/* Dropdown renders in its own iframe — ensure it's always on top */
-.goog-te-menu-frame { z-index: 99999 !important; }
-
 /* ── Minimal Dark Mode Overrides (class 'dark' on <html>) ── */
 .dark body { background-color: #071024; color: #e6eef8 }
 .dark .bg-white { background-color: #071326 !important }
