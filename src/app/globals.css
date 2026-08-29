@@ -21,16 +21,63 @@
   }
 }
 
-/* ── Minimal Dark Mode Overrides (class 'dark' on <html>) ── */
+/* ── Dark Mode Overrides (class 'dark' on <html>) ──────────────────────────
+   Remaps every Tailwind color utility actually used in src/ (audited via
+   grep) to a dark-navy-family equivalent. Previously only a handful of
+   classes were covered — text-zinc-600 (used for nearly every description
+   paragraph on the site) had no override at all, so it rendered at its
+   light-mode gray value directly against the near-black page background.
+   Text shades preserve the light-mode emphasis hierarchy (900 strongest →
+   300 faintest) by mapping it to a brightness hierarchy in dark mode. */
 .dark body { background-color: #071024; color: #e6eef8 }
-.dark .bg-white { background-color: #071326 !important }
-.dark .bg-zinc-50 { background-color: #04101a !important }
-.dark .text-zinc-900 { color: #e6eef8 !important }
+
+/* surfaces — light-mode whites/light-grays become dark navy card backgrounds */
+.dark .bg-white   { background-color: #071326 !important }
+.dark .bg-zinc-50  { background-color: #04101a !important }
+.dark .bg-zinc-100 { background-color: #0a1420 !important }
+.dark .bg-zinc-200 { background-color: #0d1826 !important }
+
+/* "ink" backgrounds (primary buttons / filled dots) — lightened so they read
+   as a distinct surface against the page rather than nearly disappearing */
+.dark .bg-zinc-900 { background-color: #0d3346 !important }
+.dark .bg-zinc-700 { background-color: #144259 !important }
+.dark .bg-zinc-900.text-white { color: #e6eef8 !important }
+
+/* text — brightness hierarchy: 900 (brightest) > 700 > 600 > 500 > 400 > 300 (dimmest) */
+.dark .text-zinc-900 { color: #f2f6fa !important }
+.dark .text-zinc-700 { color: #cddae5 !important }
+.dark .text-zinc-600 { color: #b6c6d4 !important }
 .dark .text-zinc-500 { color: #9fb0bf !important }
 .dark .text-zinc-400 { color: #7f95a3 !important }
+.dark .text-zinc-300 { color: #647c8d !important }
+
+/* borders — subtle dividers, progressively more visible */
+.dark .border-zinc-50  { border-color: #0a121e !important }
 .dark .border-zinc-100 { border-color: #0f1720 !important }
 .dark .border-zinc-200 { border-color: #15202a !important }
-.dark .bg-green-50 { background-color: #0b2b14 !important }
-.dark .bg-zinc-900 { background-color: #06202a !important }
-.dark .bg-zinc-900.text-white { color: #e6eef8 !important }
+.dark .border-zinc-300 { border-color: #1e2c3a !important }
+.dark .border-zinc-400 { border-color: #2b3d4f !important }
+.dark .border-zinc-500 { border-color: #3a4f64 !important }
+.dark .border-zinc-900 { border-color: #3a4f64 !important }
+
+/* status: green */
+.dark .bg-green-50   { background-color: #0b2b14 !important }
+.dark .bg-green-500  { background-color: #22c55e !important }
+.dark .text-green-600 { color: #4ade80 !important }
+.dark .text-green-700 { color: #4ade80 !important }
+.dark .text-green-800 { color: #86efac !important }
+
+/* status: yellow — previously unmapped, so a light pastel badge sat directly
+   on the dark page rather than a dark-mode-appropriate surface */
+.dark .bg-yellow-50   { background-color: #2b2408 !important }
+.dark .bg-yellow-500  { background-color: #eab308 !important }
+.dark .text-yellow-800 { color: #fde047 !important }
+
+/* status: red — previously unmapped, same issue as yellow */
+.dark .bg-red-50    { background-color: #2a1212 !important }
+.dark .bg-red-100   { background-color: #2a1212 !important }
+.dark .bg-red-500   { background-color: #ef4444 !important }
+.dark .border-red-100 { border-color: #3a1a1a !important }
+.dark .text-red-600 { color: #f87171 !important }
+.dark .text-red-800 { color: #fca5a5 !important }
 
