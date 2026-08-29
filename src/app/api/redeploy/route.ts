@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-function authorized(req: NextRequest) {
-  const auth = req.headers.get('authorization') ?? ''
-  return auth.startsWith('Bearer ') && auth.length > 20
-}
+import { authorized } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

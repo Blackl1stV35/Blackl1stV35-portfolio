@@ -55,11 +55,13 @@ export async function readJSON<T = any>(filePath: string, ttl = 5000): Promise<T
     const parsed = JSON.parse(await fs.readFile(filePath, 'utf-8')) as T
     cache.set(key, { value: parsed, expiresAt: now + ttl })
 
-    // In production, also try GitHub as a background refresh
+    // In production, also try GitHub as a refresh check — since this already pays
+    // the fetch latency, return the fresher value instead of discarding it
     if (!isDev) {
       const remote = await fetchGitHubJSON().catch(() => null)
       if (remote != null && JSON.stringify(remote) !== JSON.stringify(parsed)) {
         cache.set(key, { value: remote, expiresAt: now + ttl })
+        return remote
       }
     }
 
@@ -112,11 +114,13 @@ export async function readFileCached(filePath: string, ttl = 5000): Promise<stri
   const raw = await fs.readFile(filePath, 'utf-8')
   cache.set(key, { value: raw, expiresAt: now + ttl })
 
-  // In production, also try GitHub as a background refresh after reading local
+  // In production, also try GitHub as a refresh check — since this already pays
+  // the fetch latency, return the fresher value instead of discarding it
   if (!isDev) {
     const remote = await fetchGitHubFile().catch(() => null)
     if (remote != null && remote !== raw) {
       cache.set(key, { value: remote, expiresAt: now + ttl })
+      return remote
     }
   }
 

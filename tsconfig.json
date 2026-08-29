@@ -36,12 +36,6 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "activity_page.tsx",
-    "achievement_page.tsx",
-    "admin_page.tsx",
-    "export.ts",
-    "Navbar.tsx",
-    "types_index.ts"
+    "node_modules"
   ]
 }

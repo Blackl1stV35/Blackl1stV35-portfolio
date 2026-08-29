@@ -196,7 +196,9 @@ export default function AdminPage() {
       const data = await res.json()
       const form: Record<string, string> = {}
       for (const [key, value] of Object.entries(data)) {
-        if (key === 'content') continue
+        // `slug` and `content` are identity/body, not editable frontmatter fields —
+        // carrying `slug` through would bake it back into the file on save
+        if (key === 'content' || key === 'slug') continue
         form[key] = formatValue(value)
       }
       form._body = String(data.content ?? '')
@@ -295,12 +297,18 @@ export default function AdminPage() {
 
   async function saveEntry() {
     setSaving(true)
-    const typedFields = {
-      ...formData,
-      date: new Date().toISOString().split('T')[0],
-      tags: parseArrayField(formData.tags),
-      stack: parseArrayField(formData.stack),
-    }
+    // only collections whose schema defines tags/stack should get those keys written —
+    // otherwise every save pollutes frontmatter with a stray empty `tags:`/`stack:`
+    const schema = FIELDS[panel as CollectionName] ?? []
+    const hasField = (key: string) => schema.some((f) => f.key === key)
+    const typedFields: Record<string, unknown> = { ...formData }
+    // don't clobber a schema's own "Date" field (activity/achievement) — only
+    // default to today when the entry has no date field to begin with
+    if (!formData.date) typedFields.date = new Date().toISOString().split('T')[0]
+    if (hasField('tags')) typedFields.tags = parseArrayField(formData.tags)
+    else delete typedFields.tags
+    if (hasField('stack')) typedFields.stack = parseArrayField(formData.stack)
+    else delete typedFields.stack
     const res = await fetch('/api/collections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
@@ -354,7 +362,9 @@ export default function AdminPage() {
   function renderField(f: FieldDef, data: Record<string, string>, set: (k: string, v: string) => void) {
     if (f.type === 'image') return (
       <div className="col-span-2 flex items-center gap-4">
-        <AvatarUpload src={data[f.key] || undefined} initials="?" size={72}
+        {/* key forces a remount per entry — otherwise switching from editing one
+            entry to another keeps the previous entry's photo preview on screen */}
+        <AvatarUpload key={editingSlug ?? 'new'} src={data[f.key] || undefined} initials="?" size={72}
           onChange={url => set(f.key, url ?? '')} />
         <span className="text-xs font-mono text-zinc-400 leading-relaxed">
           Optional.<br />Click to upload.<br />Stored in frontmatter.

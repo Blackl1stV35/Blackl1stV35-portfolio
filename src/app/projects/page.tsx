@@ -1,4 +1,4 @@
-import { getCollection } from '@/lib/collections'
+import { getCollection, safeUrl } from '@/lib/collections'
 import type { ProjectEntry } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 
@@ -13,7 +13,9 @@ export default async function ProjectsPage() {
     <div>
       <div className="section-label">Projects</div>
       <div className="flex flex-col border border-zinc-100 rounded-md overflow-hidden">
-        {entries.map((e) => (
+        {entries.map((e) => {
+          const repoHref = safeUrl(e.repo)
+          return (
           <div key={e.slug} className="bg-white p-5 border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 transition-colors">
             <div className="flex items-start justify-between gap-4 mb-1.5">
               <h2 className="text-sm font-bold font-serif">{e.title}</h2>
@@ -21,7 +23,7 @@ export default async function ProjectsPage() {
             </div>
             <div className="text-xs font-mono text-zinc-400 mb-2">
               {e.type}
-              {e.repo && <> · <a href={e.repo} target="_blank" rel="noopener" className="hover:text-zinc-700 transition-colors">repo ↗</a></>}
+              {repoHref && <> · <a href={repoHref} target="_blank" rel="noopener" className="hover:text-zinc-700 transition-colors">repo ↗</a></>}
               {e.stars != null && <> · ★ {e.stars}</>}
               {e.forks != null && <> · 🍴 {e.forks}</>}
             </div>
@@ -32,7 +34,8 @@ export default async function ProjectsPage() {
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { getCollection } from '@/lib/collections'
+import { getCollection, safeUrl } from '@/lib/collections'
 import type { AchievementEntry } from '@/types'
 import StatusBadge from '@/components/StatusBadge'
 
@@ -22,7 +22,9 @@ export default async function AchievementPage() {
         <p className="text-sm text-zinc-400 font-mono">No achievements yet. Add entries via the admin panel.</p>
       )}
       <div className="flex flex-col border border-zinc-100 rounded-md overflow-hidden">
-        {entries.map((e) => (
+        {entries.map((e) => {
+          const credentialHref = safeUrl(e.credential_url)
+          return (
           <div key={e.slug} className="bg-white p-5 border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 transition-colors">
             <div className="flex items-start justify-between gap-4 mb-1.5">
               <h2 className="text-sm font-bold font-serif">{e.title}</h2>
@@ -33,8 +35,8 @@ export default async function AchievementPage() {
               {e.issuer && <span>· {e.issuer}</span>}
               {e.date   && <span>· {e.date}</span>}
               {e.expiry && <span>· Expires {e.expiry}</span>}
-              {e.credential_url && (
-                <span>· <a href={e.credential_url} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-700 transition-colors">Credential ↗</a></span>
+              {credentialHref && (
+                <span>· <a href={credentialHref} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-700 transition-colors">Credential ↗</a></span>
               )}
             </div>
             {e.description && <p className="text-sm text-zinc-600 leading-relaxed">{e.description}</p>}
@@ -44,7 +46,8 @@ export default async function AchievementPage() {
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

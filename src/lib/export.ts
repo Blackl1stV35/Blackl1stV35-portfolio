@@ -8,7 +8,7 @@ import {
 } from 'docx'
 import { getCollection } from './collections'
 import { readJSON } from './cache'
-import type { WorkEntry, ProjectEntry, PublicationEntry } from '@/types'
+import type { WorkEntry, ProjectEntry, PublicationEntry, ActivityEntry, AchievementEntry } from '@/types'
 
 // ── Colours ───────────────────────────────────────────────────────────────
 const BLACK  = '0A0A0A'
@@ -192,6 +192,61 @@ function publicationsSection(entries: PublicationEntry[], footer: Footer) {
   return { properties: {}, footers: { default: footer }, children }
 }
 
+function activitySection(entries: ActivityEntry[], footer: Footer) {
+  const children: Paragraph[] = [sectionHeading('Activity')]
+  for (const e of entries) {
+    children.push(
+      new Paragraph({
+        children: [
+          run(String(e.title ?? ''), { bold: true, size: 24 }),
+          mono('   '),
+          new TextRun({ text: ` ${statusLabel(e.status)} `, size: 16, bold: true, color: statusColor(e.status), font: 'Courier New' }),
+        ],
+        spacing: { before: 200, after: 40 },
+      }),
+      new Paragraph({
+        children: [
+          mono(String(e.type ?? ''), 17, MUTED),
+          ...(e.role      ? [mono(`  ·  ${e.role}`,      17, MUTED)] : []),
+          ...(e.organiser ? [mono(`  ·  ${e.organiser}`, 17, MUTED)] : []),
+          ...(e.location  ? [mono(`  ·  ${e.location}`,  17, MUTED)] : []),
+          ...(e.date      ? [mono(`  ·  ${e.date}`,      17, MUTED)] : []),
+        ],
+        spacing: { after: 60 },
+      }),
+      ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
+    )
+  }
+  return { properties: {}, footers: { default: footer }, children }
+}
+
+function achievementSection(entries: AchievementEntry[], footer: Footer) {
+  const children: Paragraph[] = [sectionHeading('Achievements')]
+  for (const e of entries) {
+    children.push(
+      new Paragraph({
+        children: [
+          run(String(e.title ?? ''), { bold: true, size: 24 }),
+          mono('   '),
+          new TextRun({ text: ` ${statusLabel(e.status)} `, size: 16, bold: true, color: statusColor(e.status), font: 'Courier New' }),
+        ],
+        spacing: { before: 200, after: 40 },
+      }),
+      new Paragraph({
+        children: [
+          mono(String(e.type ?? ''), 17, MUTED),
+          ...(e.issuer ? [mono(`  ·  ${e.issuer}`, 17, MUTED)] : []),
+          ...(e.date   ? [mono(`  ·  ${e.date}`,   17, MUTED)] : []),
+          ...(e.expiry ? [mono(`  ·  Expires ${e.expiry}`, 17, MUTED)] : []),
+        ],
+        spacing: { after: 60 },
+      }),
+      ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
+    )
+  }
+  return { properties: {}, footers: { default: footer }, children }
+}
+
 function contactSection(a: Record<string, unknown>, footer: Footer) {
   const fields: [string, string][] = [
     a.email   ? ['Email',    String(a.email)]   : null,
@@ -224,6 +279,8 @@ export async function buildPortfolioDOCX(): Promise<Buffer> {
   const work         = await getCollection<WorkEntry>('work')
   const projects     = await getCollection<ProjectEntry>('projects')
   const publications = await getCollection<PublicationEntry>('publications')
+  const activities   = await getCollection<ActivityEntry>('activity')
+  const achievements = await getCollection<AchievementEntry>('achievement')
 
   const doc = new Document({
     creator: name,
@@ -232,9 +289,11 @@ export async function buildPortfolioDOCX(): Promise<Buffer> {
     sections: [
       coverSection(author, footer),
       overviewSection(author, footer),
-      ...(work.length         ? [workSection(work, footer)]               : []),
-      ...(projects.length     ? [projectsSection(projects, footer)]       : []),
-      ...(publications.length ? [publicationsSection(publications, footer)]: []),
+      ...(work.length         ? [workSection(work, footer)]                 : []),
+      ...(projects.length     ? [projectsSection(projects, footer)]         : []),
+      ...(publications.length ? [publicationsSection(publications, footer)] : []),
+      ...(activities.length   ? [activitySection(activities, footer)]      : []),
+      ...(achievements.length ? [achievementSection(achievements, footer)] : []),
       contactSection(author, footer),
     ],
   })

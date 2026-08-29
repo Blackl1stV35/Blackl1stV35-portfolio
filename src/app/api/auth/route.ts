@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validateToken } from '@/lib/auth'
+import { validateToken, issueSession } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? '127.0.0.1'
@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
   }
 
   // ok
-  const session = Buffer.from(`${ip}:${Date.now()}:${Math.random()}`).toString('base64')
+  const session = issueSession(ip)
   return NextResponse.json({ ok: true, session }, { status: 200 })
 }

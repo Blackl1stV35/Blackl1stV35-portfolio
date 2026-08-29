@@ -1,23 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs/promises'
-
-function authorized(req: NextRequest) {
-  const auth = req.headers.get('authorization') ?? ''
-  return auth.startsWith('Bearer ') && auth.length > 20
-}
+import { authorized } from '@/lib/auth'
 
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const q = req.nextUrl.searchParams.get('file') || ''
   if (!q) return NextResponse.json({ error: 'Missing file param' }, { status: 400 })
 
-  // restrict to content and collections
+  // restrict to content and collections — checked against the *resolved* path so
+  // a traversal segment (e.g. "collections/../../etc/passwd") can't escape the
+  // string-prefix check and read arbitrary files off the server
   if (!q.startsWith('content/') && !q.startsWith('collections/')) {
     return NextResponse.json({ error: 'Invalid file path' }, { status: 400 })
   }
+  const root = path.resolve(process.cwd())
+  const localPath = path.resolve(root, q)
+  if (localPath !== root && !localPath.startsWith(root + path.sep)) {
+    return NextResponse.json({ error: 'Invalid file path' }, { status: 400 })
+  }
 
-  const localPath = path.join(process.cwd(), q)
   let local: string | null = null
   try { local = await fs.readFile(localPath, 'utf-8') } catch {}
 

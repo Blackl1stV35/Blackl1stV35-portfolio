@@ -7,6 +7,7 @@ export function buildMDX(fields: Record<string, unknown>, body: string): string 
 
   for (const [key, val] of Object.entries(fields)) {
     if (val === undefined || val === null || val === '') continue
+    if (Array.isArray(val) && val.length === 0) continue
 
     if (Array.isArray(val)) {
       lines.push(`${key}:`)
