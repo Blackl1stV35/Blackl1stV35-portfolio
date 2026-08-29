@@ -191,7 +191,10 @@ export default function AdminPage() {
 
   async function loadEntry(slug: string) {
     try {
-      const res = await fetch(`/api/collections?collection=${panel}&slug=${slug}`)
+      // slugs can contain characters that are meaningful in a query string (e.g.
+      // "Intern - R&D Support" — the unescaped "&" gets parsed as a param
+      // delimiter, truncating the slug and silently 404ing) — must be encoded
+      const res = await fetch(`/api/collections?collection=${encodeURIComponent(panel)}&slug=${encodeURIComponent(slug)}`)
       if (!res.ok) throw new Error('Entry not found')
       const data = await res.json()
       const form: Record<string, string> = {}
