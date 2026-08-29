@@ -46,19 +46,27 @@ export function issueSession(ip: string): string {
   return Buffer.from(`${payload}:${sig}`).toString('base64url')
 }
 
+const SHA256_HEX_LEN = 64 // crypto.createHmac('sha256', ...).digest('hex').length
+
+// Parses from the right using the signature's fixed hex length, rather than
+// splitting on ":" — an IPv6 client address (e.g. "2001:db8::1") contains
+// colons itself, so a naive 3-part split on "ip:ts:sig" breaks verification
+// for any IPv6 visitor (every request 401s even with a freshly issued session).
 function verifySession(session: string): boolean {
   const secret = process.env.ADMIN_TOKEN
   if (!secret || !session) return false
   try {
     const decoded = Buffer.from(session, 'base64url').toString('utf8')
-    const parts = decoded.split(':')
-    if (parts.length !== 3) return false
-    const [ip, ts, sig] = parts
-    const expected = crypto.createHmac('sha256', secret).update(`${ip}:${ts}`).digest('hex')
+    if (decoded.length <= SHA256_HEX_LEN + 1 || decoded[decoded.length - SHA256_HEX_LEN - 1] !== ':') return false
+    const sig = decoded.slice(-SHA256_HEX_LEN)
+    const payload = decoded.slice(0, -SHA256_HEX_LEN - 1) // the exact string that was signed: "ip:ts"
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
     const sigBuf = Buffer.from(sig, 'hex')
     const expectedBuf = Buffer.from(expected, 'hex')
-    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return false
-    const age = Date.now() - Number(ts)
+    if (sigBuf.length !== 32 || expectedBuf.length !== 32 || !crypto.timingSafeEqual(sigBuf, expectedBuf)) return false
+    const tsIdx = payload.lastIndexOf(':')
+    if (tsIdx === -1) return false
+    const age = Date.now() - Number(payload.slice(tsIdx + 1))
     return Number.isFinite(age) && age >= 0 && age < SESSION_TTL_MS
   } catch {
     return false
