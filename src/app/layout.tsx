@@ -36,11 +36,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className="bg-zinc-50 text-zinc-900 antialiased">
         <Navbar initials={initials} />
-        <main className="max-w-4xl mx-auto px-6 py-10">{children}</main>
-        <footer className="max-w-4xl mx-auto px-6 py-8 mt-16 border-t border-zinc-100">
-          <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10">{children}</main>
+        <footer className="max-w-4xl mx-auto px-4 sm:px-6 py-8 mt-16 border-t border-zinc-100">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs font-mono text-zinc-400">
             <span>© 2026 {authorName}</span>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <a href="/admin" className="hover:text-zinc-600 transition-colors">Admin</a>
               <span>Built with Next.js · Deployed on Vercel</span>
             </div>

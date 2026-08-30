@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Download, FileText } from 'lucide-react'
+import { Download, FileText, Menu, X } from 'lucide-react'
 
 const NAV = [
   { href: '/',             label: 'About'        },
@@ -22,6 +22,7 @@ export default function Navbar({ initials }: Props) {
   const [dlOpen, setDlOpen] = useState(false)
   const [dlType, setDlType] = useState<'cv' | 'portfolio'>('cv')
   const [theme, setTheme] = useState<'bright'|'dark'>('bright')
+  const [navOpen, setNavOpen] = useState(false)
 
   useEffect(() => {
     const t = (localStorage.getItem('site_theme') as 'bright'|'dark') || 'bright'
@@ -29,6 +30,9 @@ export default function Navbar({ initials }: Props) {
     if (t === 'dark') document.documentElement.classList.add('dark')
     else document.documentElement.classList.remove('dark')
   }, [])
+
+  // close the mobile nav on route change
+  useEffect(() => { setNavOpen(false) }, [pathname])
 
   function toggleTheme() {
     const next = theme === 'bright' ? 'dark' : 'bright'
@@ -41,11 +45,17 @@ export default function Navbar({ initials }: Props) {
   return (
     <>
       <nav className="sticky top-0 z-40 border-b border-zinc-200 bg-white">
-        <div className="max-w-4xl mx-auto px-6 flex items-center justify-between" style={{ height: 52 }}>
-          <Link href="/" className="font-serif font-bold text-base tracking-tight text-zinc-900 flex-shrink-0">
-            {initials}
-          </Link>
-          <div className="hidden md:flex items-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: 52 }}>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setNavOpen((o) => !o)}
+              className="lg:hidden text-zinc-500 hover:text-zinc-900 transition-colors -ml-1 p-1"
+              aria-label="Toggle navigation menu" aria-expanded={navOpen}
+            >{navOpen ? <X size={20} /> : <Menu size={20} />}</button>
+            <Link href="/" className="font-serif font-bold text-base tracking-tight text-zinc-900 flex-shrink-0">
+              {initials}
+            </Link>
+          </div>
+          <div className="hidden lg:flex items-center">
             {NAV.map(({ href, label }) => (
               <Link key={href} href={href}
                 className={`px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors
@@ -53,26 +63,41 @@ export default function Navbar({ initials }: Props) {
               >{label}</Link>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <button onClick={() => { setDlType('cv'); setDlOpen(true) }}
-              className="flex items-center gap-1 text-xs font-mono border border-zinc-200 px-2.5 py-1 rounded hover:bg-zinc-50 transition-colors"
-            ><Download size={12} /> CV</button>
+              className="flex items-center gap-1 text-xs font-mono border border-zinc-200 px-2 sm:px-2.5 py-1 rounded hover:bg-zinc-50 transition-colors"
+            ><Download size={12} /> <span className="hidden sm:inline">CV</span></button>
             <button onClick={() => { setDlType('portfolio'); setDlOpen(true) }}
-              className="flex items-center gap-1 text-xs font-mono border border-zinc-200 px-2.5 py-1 rounded hover:bg-zinc-50 transition-colors"
-            ><FileText size={12} /> Portfolio</button>
+              className="flex items-center gap-1 text-xs font-mono border border-zinc-200 px-2 sm:px-2.5 py-1 rounded hover:bg-zinc-50 transition-colors"
+            ><FileText size={12} /> <span className="hidden sm:inline">Portfolio</span></button>
             <button onClick={toggleTheme}
               title="Toggle Bright / Dark"
               className="text-xs font-mono border border-zinc-200 px-2 py-1 rounded hover:bg-zinc-50 transition-colors"
             >{theme === 'bright' ? '🌞' : '🌙'}</button>
           </div>
         </div>
+
+        {/* mobile nav drawer — the desktop links above are hidden below md, so
+            this is the only way to reach any page other than About on mobile */}
+        {navOpen && (
+          <div className="lg:hidden border-t border-zinc-100 bg-white">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-1 flex flex-col">
+              {NAV.map(({ href, label }) => (
+                <Link key={href} href={href}
+                  className={`py-3 text-sm font-mono uppercase tracking-widest border-b border-zinc-50 last:border-b-0 transition-colors
+                    ${pathname === href ? 'text-zinc-900' : 'text-zinc-400'}`}
+                >{label}</Link>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {dlOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4"
           onClick={e => e.target === e.currentTarget && setDlOpen(false)}
         >
-          <div className="bg-white rounded-lg p-6 w-80 border border-zinc-200">
+          <div className="bg-white rounded-lg p-6 w-80 max-w-full border border-zinc-200">
             <h2 className="font-serif font-bold text-base mb-2">
               {dlType === 'cv' ? 'Download CV / Resume' : 'Download Portfolio'}
             </h2>
