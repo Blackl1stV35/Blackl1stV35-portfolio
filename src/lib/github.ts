@@ -13,11 +13,12 @@ function getEnv() {
   return { token, owner, repo, branch }
 }
 
-async function writeLocalFile(filePath: string, content: string) {
+async function writeLocalFile(filePath: string, content: string | Buffer) {
   const localPath = path.join(process.cwd(), filePath)
   try {
     await fs.promises.mkdir(path.dirname(localPath), { recursive: true })
-    await fs.promises.writeFile(localPath, content, 'utf8')
+    if (Buffer.isBuffer(content)) await fs.promises.writeFile(localPath, content)
+    else await fs.promises.writeFile(localPath, content, 'utf8')
   } catch (err) {
     console.warn('[github] local write skipped', filePath, err instanceof Error ? err.message : err)
   }
@@ -73,7 +74,7 @@ export async function deleteMDX({ collection, slug }: { collection: string; slug
 }
 
 export async function commitFile({ path: filePath, content, message }: {
-  path: string; content: string; message: string
+  path: string; content: string | Buffer; message: string
 }) {
   const { token, owner, repo, branch } = getEnv()
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`
@@ -81,9 +82,13 @@ export async function commitFile({ path: filePath, content, message }: {
   // GitHub's PUT will reject with a clear conflict if the file actually exists
   let sha: string | undefined
   try { sha = await getFileSHA(apiUrl, token) } catch {}
+  // Buffer content (e.g. a PDF) must be base64-encoded from its raw bytes —
+  // Buffer.from(content) on a string always assumes utf8, which would corrupt
+  // binary data if content were coerced to a string first
+  const base64Content = Buffer.isBuffer(content) ? content.toString('base64') : Buffer.from(content).toString('base64')
   const body: Record<string, unknown> = {
     message,
-    content: Buffer.from(content).toString('base64'),
+    content: base64Content,
     branch,
   }
   if (sha) body.sha = sha
@@ -95,15 +100,13 @@ export async function commitFile({ path: filePath, content, message }: {
   if (!res.ok) throw new Error(`GitHub ${res.status}: ${await res.text()}`)
   const result = await res.json()
 
-  if (typeof content === 'string') {
-    await writeLocalFile(filePath, content)
-    try { invalidate(path.join(process.cwd(), filePath)) } catch {}
-    // if committed to collections, evict that collection
-    if (filePath.startsWith('collections/')) {
-      const parts = filePath.split('/')
-      if (parts.length >= 2) {
-        try { evictCollection(parts[1] as any) } catch {}
-      }
+  await writeLocalFile(filePath, content)
+  try { invalidate(path.join(process.cwd(), filePath)) } catch {}
+  // if committed to collections, evict that collection
+  if (filePath.startsWith('collections/')) {
+    const parts = filePath.split('/')
+    if (parts.length >= 2) {
+      try { evictCollection(parts[1] as any) } catch {}
     }
   }
 

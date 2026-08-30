@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { LogOut, Plus, Upload, CheckCircle } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { LogOut, Plus, Upload, CheckCircle, Menu, X } from 'lucide-react'
 import AvatarUpload from '@/components/AvatarUpload'
 
 type CollectionName = 'projects' | 'work' | 'publications' | 'books' | 'activity' | 'achievement'
@@ -110,6 +110,7 @@ export default function AdminPage() {
   const [locked, setLocked]     = useState(false)
 
   const [panel, setPanel]       = useState<Panel>('_author')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [saving, setSaving]     = useState(false)
@@ -125,6 +126,8 @@ export default function AdminPage() {
 
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({})
   const [uploadDone, setUploadDone]         = useState<Record<string, boolean>>({})
+  const [uploadError, setUploadError]       = useState<Record<string, string | null>>({})
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const [entries, setEntries] = useState<Record<string, unknown>[]>([])
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
 
@@ -351,15 +354,41 @@ export default function AdminPage() {
     } catch (err) { console.warn(err); alert('Network error') }
   }
 
-  function simulateUpload(type: string) {
+  function uploadFile(type: string, file: File) {
+    if (file.type !== 'application/pdf') { setUploadError(e => ({ ...e, [type]: 'PDF only' })); return }
+    if (file.size > 5 * 1024 * 1024) { setUploadError(e => ({ ...e, [type]: 'Max 5 MB' })); return }
+
+    setUploadError(e => ({ ...e, [type]: null }))
     setUploadProgress(p => ({ ...p, [type]: 0 }))
     setUploadDone(d => ({ ...d, [type]: false }))
-    let w = 0
-    const iv = setInterval(() => {
-      w += Math.random() * 20 + 10
-      if (w >= 100) { w = 100; clearInterval(iv); setUploadDone(d => ({ ...d, [type]: true })) }
-      setUploadProgress(p => ({ ...p, [type]: Math.min(Math.round(w), 100) }))
-    }, 120)
+
+    const body = new FormData()
+    body.append('file', file)
+    body.append('type', type)
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/upload')
+    xhr.setRequestHeader('Authorization', `Bearer ${session}`)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) setUploadProgress(p => ({ ...p, [type]: Math.round((e.loaded / e.total) * 100) }))
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadProgress(p => ({ ...p, [type]: 100 }))
+        setUploadDone(d => ({ ...d, [type]: true }))
+        fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }).catch(() => {})
+      } else {
+        let msg = 'Upload failed'
+        try { msg = JSON.parse(xhr.responseText).error ?? msg } catch {}
+        setUploadError(e => ({ ...e, [type]: msg }))
+        setUploadProgress(p => { const n = { ...p }; delete n[type]; return n })
+      }
+    }
+    xhr.onerror = () => {
+      setUploadError(e => ({ ...e, [type]: 'Network error' }))
+      setUploadProgress(p => { const n = { ...p }; delete n[type]; return n })
+    }
+    xhr.send(body)
   }
 
   function renderField(f: FieldDef, data: Record<string, string>, set: (k: string, v: string) => void) {
@@ -419,37 +448,60 @@ export default function AdminPage() {
 
   const isCollection = COLLECTIONS.includes(panel as CollectionName)
 
+  // shared between the static desktop sidebar and the mobile drawer — closing
+  // the drawer on every nav click keeps it from staying open after navigating
+  const sidebarLinks = (
+    <>
+      <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Author</div>
+      <SideLink label="Profile" active={panel === '_author'} onClick={() => { setPanel('_author'); setShowForm(false); setSidebarOpen(false) }} />
+      <SideLink label="Contact" active={panel === '_contact'} onClick={() => { setPanel('_contact'); setShowForm(false); loadContact(); setSidebarOpen(false) }} />
+      <div className="border-t border-zinc-100 mt-3 pt-3">
+        <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Collections</div>
+        {COLLECTIONS.map(c => (
+          <SideLink key={c} label={c.charAt(0).toUpperCase() + c.slice(1)}
+            active={panel === c} onClick={() => { setPanel(c); setShowForm(false); setSidebarOpen(false) }} />
+        ))}
+      </div>
+      <div className="border-t border-zinc-100 mt-3 pt-3">
+        <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Files</div>
+        <SideLink label="CV & PDFs" active={panel === '_uploads'} onClick={() => { setPanel('_uploads'); setShowForm(false); setSidebarOpen(false) }} />
+      </div>
+    </>
+  )
+
   return (
     <div className="min-h-screen bg-zinc-50">
-      <div className="bg-white border-b border-zinc-200 px-6 h-12 flex items-center justify-between">
+      <div className="bg-white border-b border-zinc-200 px-4 sm:px-6 h-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <button onClick={() => setSidebarOpen((o) => !o)}
+            className="md:hidden text-zinc-500 hover:text-zinc-900 transition-colors -ml-1 p-1"
+            aria-label="Toggle admin menu" aria-expanded={sidebarOpen}
+          >{sidebarOpen ? <X size={18} /> : <Menu size={18} />}</button>
           <span className="text-sm font-mono font-bold">Admin</span>
-          <span className="text-xs font-mono bg-green-50 text-green-700 px-2 py-0.5 rounded">Authenticated</span>
+          <span className="hidden sm:inline text-xs font-mono bg-green-50 text-green-700 px-2 py-0.5 rounded">Authenticated</span>
         </div>
         <button onClick={handleLogout}
           className="flex items-center gap-1.5 text-xs font-mono text-zinc-400 border border-zinc-200 px-3 py-1 rounded hover:text-zinc-700 transition-colors"
         ><LogOut size={12} /> Sign out</button>
       </div>
 
-      <div className="flex min-h-[calc(100vh-48px)]">
-        <aside className="w-44 bg-white border-r border-zinc-100 py-4 flex-shrink-0">
-          <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Author</div>
-          <SideLink label="Profile" active={panel === '_author'} onClick={() => { setPanel('_author'); setShowForm(false) }} />
-          <SideLink label="Contact" active={panel === '_contact'} onClick={() => { setPanel('_contact'); setShowForm(false); loadContact() }} />
-          <div className="border-t border-zinc-100 mt-3 pt-3">
-            <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Collections</div>
-            {COLLECTIONS.map(c => (
-              <SideLink key={c} label={c.charAt(0).toUpperCase() + c.slice(1)}
-                active={panel === c} onClick={() => { setPanel(c); setShowForm(false) }} />
-            ))}
+      <div className="flex min-h-[calc(100vh-48px)] relative">
+        {/* mobile drawer — the sidebar below is desktop-only (hidden below md);
+            on a phone the fixed-width sidebar would otherwise squeeze the main
+            content pane down to an unusably narrow column */}
+        {sidebarOpen && (
+          <div className="md:hidden fixed inset-0 z-40 flex" onClick={(e) => e.target === e.currentTarget && setSidebarOpen(false)}>
+            <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
+            <aside className="relative w-56 max-w-[80vw] bg-white border-r border-zinc-100 py-4 overflow-auto">
+              {sidebarLinks}
+            </aside>
           </div>
-          <div className="border-t border-zinc-100 mt-3 pt-3">
-            <div className="text-xs font-mono uppercase tracking-widest text-zinc-400 px-4 mb-2">Files</div>
-            <SideLink label="CV & PDFs" active={panel === '_uploads'} onClick={() => { setPanel('_uploads'); setShowForm(false) }} />
-          </div>
+        )}
+        <aside className="hidden md:block w-44 bg-white border-r border-zinc-100 py-4 flex-shrink-0">
+          {sidebarLinks}
         </aside>
 
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-auto">
 
           {/* ── Author profile panel ── */}
           {panel === '_author' && (
@@ -477,7 +529,7 @@ export default function AdminPage() {
               {/* Text fields */}
               <div className="bg-white border border-zinc-200 rounded-md p-5 mb-4">
                 <div className="text-xs font-mono text-zinc-400 mb-4 uppercase tracking-widest">About content</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {AUTHOR_FIELDS.map(f => (
                     <div key={f.key} className={f.type === 'textarea' ? 'col-span-2' : ''}>
                       <label className="block text-xs font-mono text-zinc-500 mb-1">{f.label}</label>
@@ -503,7 +555,7 @@ export default function AdminPage() {
 
               <div className="bg-white border border-zinc-200 rounded-md p-5 mb-4">
                 <div className="text-xs font-mono text-zinc-400 mb-4 uppercase tracking-widest">Contact links</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {['email','github','linkedin','location','formAction'].map(k => (
                     <div key={k} className={k === 'formAction' ? 'col-span-2' : ''}>
                       <label className="block text-xs font-mono text-zinc-500 mb-1">{k === 'formAction' ? 'Form action (submit URL)' : (k.charAt(0).toUpperCase() + k.slice(1))}</label>
@@ -565,7 +617,7 @@ export default function AdminPage() {
 
               {showForm && (
                 <div className="bg-white border border-zinc-200 rounded-md p-5 mb-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                     {FIELDS[panel as CollectionName].map(f => (
                       <div key={f.key} className={f.type === 'textarea' || f.type === 'image' ? 'col-span-2' : ''}>
                         <label className="block text-xs font-mono text-zinc-500 mb-1">{f.label}</label>
@@ -599,7 +651,11 @@ export default function AdminPage() {
               <h2 className="font-serif font-bold text-base mb-5">CV &amp; Portfolio PDF</h2>
               {(['cv'] as const).map(type => (
                 <div key={type} className="mb-4">
-                  <div onClick={() => simulateUpload(type)}
+                  <input ref={(el) => { fileInputRefs.current[type] = el }} type="file" accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadFile(type, f); e.target.value = '' }}
+                  />
+                  <div onClick={() => fileInputRefs.current[type]?.click()}
                     className="border border-dashed border-zinc-300 rounded-md p-8 text-center cursor-pointer hover:bg-zinc-50 bg-white mb-2 transition-colors"
                   >
                     <Upload size={22} className="mx-auto text-zinc-300 mb-2" />
@@ -620,6 +676,9 @@ export default function AdminPage() {
                           : `${uploadProgress[type]}%`}
                       </span>
                     </div>
+                  )}
+                  {uploadError[type] && (
+                    <p className="text-xs font-mono text-red-600 mt-1">{uploadError[type]}</p>
                   )}
                 </div>
               ))}
