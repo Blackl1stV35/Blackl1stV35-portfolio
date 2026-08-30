@@ -531,7 +531,7 @@ export default function AdminPage() {
                 <div className="text-xs font-mono text-zinc-400 mb-4 uppercase tracking-widest">About content</div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {AUTHOR_FIELDS.map(f => (
-                    <div key={f.key} className={f.type === 'textarea' ? 'col-span-2' : ''}>
+                    <div key={f.key} className={f.type === 'textarea' ? 'lg:col-span-2' : ''}>
                       <label className="block text-xs font-mono text-zinc-500 mb-1">{f.label}</label>
                       {renderField(f, authorData, (k, v) => setAuthorData(d => ({ ...d, [k]: v })))}
                     </div>
@@ -557,7 +557,7 @@ export default function AdminPage() {
                 <div className="text-xs font-mono text-zinc-400 mb-4 uppercase tracking-widest">Contact links</div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {['email','github','linkedin','location','formAction'].map(k => (
-                    <div key={k} className={k === 'formAction' ? 'col-span-2' : ''}>
+                    <div key={k} className={k === 'formAction' ? 'lg:col-span-2' : ''}>
                       <label className="block text-xs font-mono text-zinc-500 mb-1">{k === 'formAction' ? 'Form action (submit URL)' : (k.charAt(0).toUpperCase() + k.slice(1))}</label>
                       <input type="text" value={contactData[k] ?? ''}
                         onChange={e => setContactData(d => ({ ...d, [k]: e.target.value }))}
@@ -619,7 +619,7 @@ export default function AdminPage() {
                 <div className="bg-white border border-zinc-200 rounded-md p-5 mb-5">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                     {FIELDS[panel as CollectionName].map(f => (
-                      <div key={f.key} className={f.type === 'textarea' || f.type === 'image' ? 'col-span-2' : ''}>
+                      <div key={f.key} className={f.type === 'textarea' || f.type === 'image' ? 'lg:col-span-2' : ''}>
                         <label className="block text-xs font-mono text-zinc-500 mb-1">{f.label}</label>
                         {renderField(f, formData, (k, v) => setFormData(d => ({ ...d, [k]: v })))}
                       </div>
