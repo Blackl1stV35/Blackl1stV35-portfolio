@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { LogOut, Plus, Upload, CheckCircle, Menu, X } from 'lucide-react'
 import AvatarUpload from '@/components/AvatarUpload'
+import PicturesManager from '@/components/PicturesManager'
 
 type CollectionName = 'projects' | 'work' | 'publications' | 'books' | 'activity' | 'achievement'
 type Panel = CollectionName | '_uploads' | '_author' | '_contact'
@@ -10,8 +11,10 @@ const COLLECTIONS: CollectionName[] = ['projects', 'work', 'publications', 'book
 
 type FieldDef = { key: string; label: string; type: string; options?: string[] }
 
-// picture field injected into every collection
-const PICTURE_FIELD: FieldDef = { key: 'picture', label: 'Picture (optional)', type: 'image' }
+// Books keeps a single cover picture; every other collection gets a
+// multi-picture gallery (bulk upload, remove, drag-to-reorder).
+const PICTURE_FIELD: FieldDef = { key: 'picture', label: 'Cover picture (optional)', type: 'image' }
+const PICTURES_FIELD: FieldDef = { key: 'pictures', label: 'Pictures (up to 10)', type: 'images' }
 
 const FIELDS: Record<CollectionName, FieldDef[]> = {
   projects: [
@@ -21,7 +24,7 @@ const FIELDS: Record<CollectionName, FieldDef[]> = {
     { key: 'repo',        label: 'Repo URL',            type: 'text' },
     { key: 'description', label: 'Description',         type: 'textarea' },
     { key: 'tags',        label: 'Tags (comma-sep)',     type: 'text' },
-    PICTURE_FIELD,
+    PICTURES_FIELD,
   ],
   work: [
     { key: 'role',        label: 'Role *',              type: 'text' },
@@ -33,7 +36,7 @@ const FIELDS: Record<CollectionName, FieldDef[]> = {
     { key: 'description', label: 'Description',         type: 'textarea' },
     { key: 'highlights',  label: 'Highlights',          type: 'textarea' },
     { key: 'stack',       label: 'Stack (comma-sep)',   type: 'text' },
-    PICTURE_FIELD,
+    PICTURES_FIELD,
   ],
   publications: [
     { key: 'title',       label: 'Title *',             type: 'text' },
@@ -45,7 +48,7 @@ const FIELDS: Record<CollectionName, FieldDef[]> = {
     { key: 'arxiv',       label: 'arXiv ID',            type: 'text' },
     { key: 'description', label: 'Description',         type: 'textarea' },
     { key: 'abstract',    label: 'Abstract',            type: 'textarea' },
-    PICTURE_FIELD,
+    PICTURES_FIELD,
   ],
   books: [
     { key: 'title',       label: 'Title *',             type: 'text' },
@@ -69,7 +72,7 @@ const FIELDS: Record<CollectionName, FieldDef[]> = {
     { key: 'url',         label: 'URL',                 type: 'text' },
     { key: 'description', label: 'Description',         type: 'textarea' },
     { key: 'tags',        label: 'Tags (comma-sep)',     type: 'text' },
-    PICTURE_FIELD,
+    PICTURES_FIELD,
   ],
 
   achievement: [
@@ -82,7 +85,7 @@ const FIELDS: Record<CollectionName, FieldDef[]> = {
     { key: 'credential_url', label: 'Credential URL',    type: 'text' },
     { key: 'description',    label: 'Description',       type: 'textarea' },
     { key: 'tags',           label: 'Tags (comma-sep)',  type: 'text' },
-    PICTURE_FIELD,
+    PICTURES_FIELD,
   ],
 }
 
@@ -183,6 +186,16 @@ export default function AdminPage() {
     return val == null ? '' : String(val)
   }
 
+  // `pictures` holds URLs/data-URLs, not comma-safe text — round-trips through
+  // formData as a JSON string instead of formatValue's comma-join.
+  function parsePicturesField(val: string | undefined): string[] {
+    if (!val) return []
+    try {
+      const arr = JSON.parse(val)
+      return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : []
+    } catch { return [] }
+  }
+
   async function loadEntries(collection: CollectionName) {
     try {
       const res = await fetch(`/api/collections?collection=${collection}`)
@@ -205,7 +218,8 @@ export default function AdminPage() {
         // `slug` and `content` are identity/body, not editable frontmatter fields —
         // carrying `slug` through would bake it back into the file on save
         if (key === 'content' || key === 'slug') continue
-        form[key] = formatValue(value)
+        // pictures is a real array of URLs — JSON round-trip, not comma-join
+        form[key] = key === 'pictures' ? JSON.stringify(Array.isArray(value) ? value : []) : formatValue(value)
       }
       form._body = String(data.content ?? '')
       setFormData(form)
@@ -315,6 +329,13 @@ export default function AdminPage() {
     else delete typedFields.tags
     if (hasField('stack')) typedFields.stack = parseArrayField(formData.stack)
     else delete typedFields.stack
+    if (hasField('pictures')) typedFields.pictures = parsePicturesField(formData.pictures)
+    else delete typedFields.pictures
+    // a legacy single `picture` value can still round-trip in via GET (see
+    // normalizeEntry's backward-compat fallback) even once a collection's own
+    // schema has moved on to the `pictures` gallery — drop the stale duplicate
+    // rather than writing it back into frontmatter alongside the new array
+    if (!hasField('picture')) delete typedFields.picture
     const res = await fetch('/api/collections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
@@ -322,6 +343,8 @@ export default function AdminPage() {
     })
     setSaving(false)
     if (res.ok) {
+      const j = await res.json().catch(() => null)
+      if (j?.warning) alert(j.warning)
       setSaved(true)
       setTimeout(() => {
         setSaved(false)
@@ -399,8 +422,19 @@ export default function AdminPage() {
         <AvatarUpload key={editingSlug ?? 'new'} src={data[f.key] || undefined} initials="?" size={72}
           onChange={url => set(f.key, url ?? '')} />
         <span className="text-xs font-mono text-zinc-400 leading-relaxed">
-          Optional.<br />Click to upload.<br />Stored in frontmatter.
+          Optional.<br />Click to upload.<br />Uploaded to the repo on save.
         </span>
+      </div>
+    )
+    if (f.type === 'images') return (
+      <div>
+        {/* key forces a remount per entry — otherwise switching from editing one
+            entry to another keeps the previous entry's pictures on screen */}
+        <PicturesManager key={editingSlug ?? 'new'} value={parsePicturesField(data[f.key])}
+          onChange={arr => set(f.key, JSON.stringify(arr))} />
+        <p className="text-xs font-mono text-zinc-400 mt-1.5 leading-relaxed">
+          Optional. Bulk-select or drag files in. Drag a picture onto another to reorder. Uploaded to the repo on save.
+        </p>
       </div>
     )
     if (f.type === 'select') return (
@@ -619,7 +653,7 @@ export default function AdminPage() {
                 <div className="bg-white border border-zinc-200 rounded-md p-5 mb-5">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                     {FIELDS[panel as CollectionName].map(f => (
-                      <div key={f.key} className={f.type === 'textarea' || f.type === 'image' ? 'lg:col-span-2' : ''}>
+                      <div key={f.key} className={f.type === 'textarea' || f.type === 'image' || f.type === 'images' ? 'lg:col-span-2' : ''}>
                         <label className="block text-xs font-mono text-zinc-500 mb-1">{f.label}</label>
                         {renderField(f, formData, (k, v) => setFormData(d => ({ ...d, [k]: v })))}
                       </div>

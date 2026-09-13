@@ -51,12 +51,19 @@ function normalizeEntry<T extends BaseEntry>(entry: T): T {
   const stringified = Object.fromEntries(
     Object.entries(entry).map(([k, v]) => [k, v instanceof Date ? v.toISOString().split('T')[0] : v])
   )
+  const picturesArr = Array.isArray((entry as any).pictures)
+    ? (entry as any).pictures.filter((p: unknown) => typeof p === 'string')
+    : []
+  // entries saved before the multi-picture gallery only have a single legacy
+  // `picture` string — fall back to it so those keep displaying until re-saved
+  const legacyPicture = typeof (entry as any).picture === 'string' ? (entry as any).picture : ''
   return {
     ...entry,
     ...stringified,
     status: validStatus(entry.status) ? entry.status : 'green',
     tags: normalizeArray((entry as any).tags),
     stack: normalizeArray((entry as any).stack),
+    pictures: picturesArr.length ? picturesArr : (legacyPicture ? [legacyPicture] : []),
   } as T
 }
 

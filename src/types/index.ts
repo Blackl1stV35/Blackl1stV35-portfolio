@@ -6,7 +6,10 @@ export interface BaseEntry {
   description?: string
   tags?: string[]
   links?: { label: string; url: string }[]
+  /** Books' single cover image */
   picture?: string
+  /** Multi-picture gallery used by work/projects/publications/activity/achievement */
+  pictures?: string[]
   status: StatusColor
   date?: string
   content: string

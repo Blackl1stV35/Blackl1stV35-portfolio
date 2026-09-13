@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { commitMDX, deleteMDX, commitFile } from '@/lib/github'
 import { buildMDX, slugify } from '@/lib/mdx'
 import { getCollection, getEntry, isValidCollection, isSafeSlug, safeUrl } from '@/lib/collections'
@@ -6,9 +7,11 @@ import { authorized } from '@/lib/auth'
 import type { CollectionEntry, CollectionName } from '@/types'
 
 // GitHub's Contents API (a single base64 PUT) is only reliable for files up to
-// a few MB — matches the cap the client already enforces in AvatarUpload, but
-// re-checked here since the client-side check is trivially bypassable.
+// a few MB — matches the cap the client already enforces in AvatarUpload/
+// PicturesManager, but re-checked here since a client-side check is trivially
+// bypassable.
 const MAX_PICTURE_BYTES = 5 * 1024 * 1024
+const MAX_PICTURES_PER_ENTRY = 10
 const PICTURE_DATA_URL_RE = /^data:image\/(png|jpeg|jpg|gif|webp);base64,([a-zA-Z0-9+/]+=*)$/
 
 // the client-declared MIME type in the data URL is just a label — check the
@@ -22,11 +25,10 @@ const PICTURE_MAGIC: Record<string, (buf: Buffer) => boolean> = {
 }
 const PICTURE_EXT: Record<string, string> = { png: 'png', jpeg: 'jpg', jpg: 'jpg', gif: 'gif', webp: 'webp' }
 
-// The admin form's picture field arrives as a base64 data URL (client-side
-// preview only, nothing is uploaded yet). Decode it here and commit the actual
-// bytes to the repo under public/uploads, then return the resulting static
-// path so frontmatter stores a URL instead of a multi-MB inline blob.
-async function persistPicture(collection: string, slug: string, dataUrl: string): Promise<string> {
+// Decodes a data URL, validates size/magic-bytes, and commits it to the repo
+// under public/uploads/<collection>/<filename>.<ext>. Shared by the single
+// cover-picture field (Books) and the multi-picture gallery (everything else).
+async function decodeAndCommitPicture(collection: string, filePathBase: string, dataUrl: string): Promise<string> {
   const match = PICTURE_DATA_URL_RE.exec(dataUrl)
   if (!match) throw new Error('Invalid picture format')
   const [, mime, base64] = match
@@ -40,9 +42,42 @@ async function persistPicture(collection: string, slug: string, dataUrl: string)
   if (buf.length > MAX_PICTURE_BYTES) throw new Error(`Picture exceeds ${MAX_PICTURE_BYTES / (1024 * 1024)} MB limit`)
   if (!PICTURE_MAGIC[mime]?.(buf)) throw new Error('Picture file content does not match its declared type')
   const ext = PICTURE_EXT[mime]
-  const filePath = `public/uploads/${collection}/${slug}.${ext}`
-  await commitFile({ path: filePath, content: buf, message: `update(${collection}): ${slug} picture` })
-  return `/uploads/${collection}/${slug}.${ext}`
+  const filePath = `public/uploads/${collection}/${filePathBase}.${ext}`
+  await commitFile({ path: filePath, content: buf, message: `update(${collection}): ${filePathBase}` })
+  return `/uploads/${collection}/${filePathBase}.${ext}`
+}
+
+// Books' single cover picture — stable filename, one per slug.
+async function persistPicture(collection: string, slug: string, dataUrl: string): Promise<string> {
+  return decodeAndCommitPicture(collection, slug, dataUrl)
+}
+
+// The multi-picture gallery (work/projects/publications/activity/achievement).
+// Already-uploaded /uploads/<collection>/... URLs pass through untouched; any
+// other non-data-URL string (typo, arbitrary external URL) is dropped rather
+// than written verbatim into frontmatter — only this collection's own uploads
+// or a freshly-picked data URL are legitimate values here.
+//
+// New pictures commit one at a time (not Promise.all): the GitHub Contents
+// API resolves each PUT against the branch's current HEAD and then advances
+// the branch ref, so concurrent PUTs to the same branch — even at distinct
+// paths — can race on that ref update and 409. Sequential commits avoid that
+// at the cost of some latency.
+async function persistPictures(collection: string, slug: string, pictures: unknown): Promise<{ pictures: string[]; truncated: boolean }> {
+  if (!Array.isArray(pictures)) return { pictures: [], truncated: false }
+  const strings = pictures.filter((p): p is string => typeof p === 'string')
+  const truncated = strings.length > MAX_PICTURES_PER_ENTRY
+  const capped = strings.slice(0, MAX_PICTURES_PER_ENTRY)
+  const out: string[] = []
+  for (const pic of capped) {
+    if (pic.startsWith('data:image/')) {
+      const suffix = crypto.randomBytes(4).toString('hex')
+      out.push(await decodeAndCommitPicture(collection, `${slug}-${suffix}`, pic))
+    } else if (pic.startsWith(`/uploads/${collection}/`)) {
+      out.push(pic)
+    }
+  }
+  return { pictures: out, truncated }
 }
 
 // Not every collection schema has a `title` field (e.g. "work" entries are
@@ -91,11 +126,12 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(entries)
 }
 
-// A base64-encoded MAX_PICTURE_BYTES picture inflates by ~4/3, plus JSON
-// overhead and the entry's other text fields — reject on the declared
-// Content-Length before buffering/parsing the body, so an oversized request
-// can't force a large allocation just to be rejected after the fact.
-const MAX_REQUEST_BYTES = 8 * 1024 * 1024
+// Worst case is a full gallery of MAX_PICTURES_PER_ENTRY pictures, each at
+// MAX_PICTURE_BYTES and inflated ~4/3 by base64, plus JSON/text overhead —
+// reject on the declared Content-Length before buffering/parsing the body, so
+// an oversized request can't force a large allocation just to be rejected
+// after the fact.
+const MAX_REQUEST_BYTES = Math.ceil(MAX_PICTURES_PER_ENTRY * MAX_PICTURE_BYTES * 4 / 3) + 1024 * 1024
 
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -143,9 +179,19 @@ export async function POST(req: NextRequest) {
     if (typeof fields.picture === 'string' && fields.picture.startsWith('data:image/')) {
       fields.picture = await persistPicture(collection, slug, fields.picture)
     }
+    let picturesTruncated = false
+    if (Array.isArray(fields.pictures)) {
+      const result = await persistPictures(collection, slug, fields.pictures)
+      fields.pictures = result.pictures
+      picturesTruncated = result.truncated
+    }
     const mdx  = buildMDX(fields, content)
     await commitMDX({ collection, slug, content: mdx })
-    return NextResponse.json({ ok: true, slug }, { status: 200 })
+    return NextResponse.json({
+      ok: true,
+      slug,
+      ...(picturesTruncated ? { warning: `Only the first ${MAX_PICTURES_PER_ENTRY} pictures were kept.` } : {}),
+    }, { status: 200 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 500 })

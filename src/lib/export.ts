@@ -1,8 +1,9 @@
 // src/lib/export.ts — server-side only
 import fs from 'fs'
 import path from 'path'
+import sharp from 'sharp'
 import {
-  Document, Packer, Paragraph, TextRun,
+  Document, Packer, Paragraph, TextRun, ImageRun,
   HeadingLevel, AlignmentType, BorderStyle, WidthType,
   Header, Footer, PageNumber, NumberFormat,
 } from 'docx'
@@ -63,6 +64,42 @@ function statusColor(status: string): string {
   return status === 'green' ? GREEN : status === 'yellow' ? YELLOW : RED
 }
 
+// Pictures render at PICTURE_SIZE regardless of their original resolution, so
+// the source file (up to 5MB, whatever format the admin uploaded) is
+// downscaled and re-encoded to a small JPEG before embedding — otherwise a
+// docx's own ImageRun stores the full original bytes verbatim, and a handful
+// of near-cap pictures per entry would bloat the export by tens of MB for
+// thumbnails that only ever display at 90x90. Routing every format through
+// sharp also sidesteps docx's own jpg/png/gif/bmp-only ImageRun restriction —
+// a webp upload converts to jpeg here instead of being skipped.
+const PICTURE_SIZE = 90
+const PICTURE_PIXELS = PICTURE_SIZE * 2 // 2x for a non-blurry thumbnail
+
+async function pictureRuns(pictures: unknown): Promise<ImageRun[]> {
+  if (!Array.isArray(pictures)) return []
+  const runs: ImageRun[] = []
+  for (const p of pictures) {
+    if (typeof p !== 'string' || !p.startsWith('/uploads/')) continue
+    try {
+      const raw = fs.readFileSync(path.join(process.cwd(), 'public', p))
+      const data = await sharp(raw)
+        .resize(PICTURE_PIXELS, PICTURE_PIXELS, { fit: 'cover' })
+        .jpeg({ quality: 70 })
+        .toBuffer()
+      runs.push(new ImageRun({ type: 'jpg', data, transformation: { width: PICTURE_SIZE, height: PICTURE_SIZE } }))
+    } catch { /* file missing locally, or not a decodable image — skip rather than fail the export */ }
+  }
+  return runs
+}
+
+async function pictureParagraph(pictures: unknown): Promise<Paragraph[]> {
+  const runs = await pictureRuns(pictures)
+  if (!runs.length) return []
+  // a bare space between ImageRuns so they don't render glued together
+  const children = runs.flatMap((run, i) => (i > 0 ? [new TextRun(' '), run] : [run]))
+  return [new Paragraph({ children, spacing: { before: 80, after: 80 } })]
+}
+
 function makeFooter(name: string): Footer {
   return new Footer({
     children: [new Paragraph({
@@ -112,7 +149,7 @@ function overviewSection(a: Record<string, unknown>, footer: Footer) {
   }
 }
 
-function workSection(entries: WorkEntry[], footer: Footer) {
+async function workSection(entries: WorkEntry[], footer: Footer) {
   const children: Paragraph[] = [sectionHeading('Work Experience')]
   for (const e of entries) {
     const stack = toArray(e.stack)
@@ -131,12 +168,13 @@ function workSection(entries: WorkEntry[], footer: Footer) {
       ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
       ...(e.highlights  ? [new Paragraph({ children: [run(String(e.highlights), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
       ...(stack.length  ? [new Paragraph({ children: stack.map((s, i) => mono(`${s}${i < stack.length - 1 ? '  ' : ''}`, 17, MUTED)) })] : []),
+      ...(await pictureParagraph(e.pictures)),
     )
   }
   return { properties: {}, footers: { default: footer }, children }
 }
 
-function projectsSection(entries: ProjectEntry[], footer: Footer) {
+async function projectsSection(entries: ProjectEntry[], footer: Footer) {
   const children: Paragraph[] = [sectionHeading('Projects')]
   for (const e of entries) {
     const tags = toArray(e.tags)
@@ -159,12 +197,13 @@ function projectsSection(entries: ProjectEntry[], footer: Footer) {
       }),
       ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
       ...(tags.length   ? [new Paragraph({ children: tags.map((tg, i) => mono(`${tg}${i < tags.length - 1 ? '  ' : ''}`, 17, MUTED)) })] : []),
+      ...(await pictureParagraph(e.pictures)),
     )
   }
   return { properties: {}, footers: { default: footer }, children }
 }
 
-function publicationsSection(entries: PublicationEntry[], footer: Footer) {
+async function publicationsSection(entries: PublicationEntry[], footer: Footer) {
   const children: Paragraph[] = [sectionHeading('Publications')]
   for (const e of entries) {
     children.push(
@@ -187,12 +226,13 @@ function publicationsSection(entries: PublicationEntry[], footer: Footer) {
         spacing: { after: 60 },
       }),
       ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
+      ...(await pictureParagraph(e.pictures)),
     )
   }
   return { properties: {}, footers: { default: footer }, children }
 }
 
-function activitySection(entries: ActivityEntry[], footer: Footer) {
+async function activitySection(entries: ActivityEntry[], footer: Footer) {
   const children: Paragraph[] = [sectionHeading('Activity')]
   for (const e of entries) {
     children.push(
@@ -215,12 +255,13 @@ function activitySection(entries: ActivityEntry[], footer: Footer) {
         spacing: { after: 60 },
       }),
       ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
+      ...(await pictureParagraph(e.pictures)),
     )
   }
   return { properties: {}, footers: { default: footer }, children }
 }
 
-function achievementSection(entries: AchievementEntry[], footer: Footer) {
+async function achievementSection(entries: AchievementEntry[], footer: Footer) {
   const children: Paragraph[] = [sectionHeading('Achievements')]
   for (const e of entries) {
     children.push(
@@ -242,6 +283,7 @@ function achievementSection(entries: AchievementEntry[], footer: Footer) {
         spacing: { after: 60 },
       }),
       ...(e.description ? [new Paragraph({ children: [run(String(e.description), { size: 20, color: MID })], spacing: { after: 60 }, alignment: AlignmentType.JUSTIFIED })] : []),
+      ...(await pictureParagraph(e.pictures)),
     )
   }
   return { properties: {}, footers: { default: footer }, children }
@@ -289,11 +331,11 @@ export async function buildPortfolioDOCX(): Promise<Buffer> {
     sections: [
       coverSection(author, footer),
       overviewSection(author, footer),
-      ...(work.length         ? [workSection(work, footer)]                 : []),
-      ...(projects.length     ? [projectsSection(projects, footer)]         : []),
-      ...(publications.length ? [publicationsSection(publications, footer)] : []),
-      ...(activities.length   ? [activitySection(activities, footer)]      : []),
-      ...(achievements.length ? [achievementSection(achievements, footer)] : []),
+      ...(work.length         ? [await workSection(work, footer)]                 : []),
+      ...(projects.length     ? [await projectsSection(projects, footer)]         : []),
+      ...(publications.length ? [await publicationsSection(publications, footer)] : []),
+      ...(activities.length   ? [await activitySection(activities, footer)]      : []),
+      ...(achievements.length ? [await achievementSection(achievements, footer)] : []),
       contactSection(author, footer),
     ],
   })
