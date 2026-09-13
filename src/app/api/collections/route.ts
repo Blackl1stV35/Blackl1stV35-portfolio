@@ -1,9 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { commitMDX, deleteMDX } from '@/lib/github'
+import { commitMDX, deleteMDX, commitFile } from '@/lib/github'
 import { buildMDX, slugify } from '@/lib/mdx'
 import { getCollection, getEntry, isValidCollection, isSafeSlug, safeUrl } from '@/lib/collections'
 import { authorized } from '@/lib/auth'
 import type { CollectionEntry, CollectionName } from '@/types'
+
+// GitHub's Contents API (a single base64 PUT) is only reliable for files up to
+// a few MB — matches the cap the client already enforces in AvatarUpload, but
+// re-checked here since the client-side check is trivially bypassable.
+const MAX_PICTURE_BYTES = 5 * 1024 * 1024
+const PICTURE_DATA_URL_RE = /^data:image\/(png|jpeg|jpg|gif|webp);base64,([a-zA-Z0-9+/]+=*)$/
+
+// the client-declared MIME type in the data URL is just a label — check the
+// actual file bytes so a relabelled non-image can't be committed to the repo
+const PICTURE_MAGIC: Record<string, (buf: Buffer) => boolean> = {
+  png:  (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  jpeg: (b) => b.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+  jpg:  (b) => b.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff])),
+  gif:  (b) => b.subarray(0, 4).toString('latin1') === 'GIF8',
+  webp: (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP',
+}
+const PICTURE_EXT: Record<string, string> = { png: 'png', jpeg: 'jpg', jpg: 'jpg', gif: 'gif', webp: 'webp' }
+
+// The admin form's picture field arrives as a base64 data URL (client-side
+// preview only, nothing is uploaded yet). Decode it here and commit the actual
+// bytes to the repo under public/uploads, then return the resulting static
+// path so frontmatter stores a URL instead of a multi-MB inline blob.
+async function persistPicture(collection: string, slug: string, dataUrl: string): Promise<string> {
+  const match = PICTURE_DATA_URL_RE.exec(dataUrl)
+  if (!match) throw new Error('Invalid picture format')
+  const [, mime, base64] = match
+  // reject on the encoded string length before decoding — Buffer.from() below
+  // allocates the full decoded size, so checking after decode would mean an
+  // oversized payload already forced a large allocation just to be discarded
+  if (base64.length > Math.ceil(MAX_PICTURE_BYTES * 4 / 3) + 4) {
+    throw new Error(`Picture exceeds ${MAX_PICTURE_BYTES / (1024 * 1024)} MB limit`)
+  }
+  const buf = Buffer.from(base64, 'base64')
+  if (buf.length > MAX_PICTURE_BYTES) throw new Error(`Picture exceeds ${MAX_PICTURE_BYTES / (1024 * 1024)} MB limit`)
+  if (!PICTURE_MAGIC[mime]?.(buf)) throw new Error('Picture file content does not match its declared type')
+  const ext = PICTURE_EXT[mime]
+  const filePath = `public/uploads/${collection}/${slug}.${ext}`
+  await commitFile({ path: filePath, content: buf, message: `update(${collection}): ${slug} picture` })
+  return `/uploads/${collection}/${slug}.${ext}`
+}
 
 // Not every collection schema has a `title` field (e.g. "work" entries are
 // identified by role + org). Fall back through other identifying fields so
@@ -51,8 +91,19 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(entries)
 }
 
+// A base64-encoded MAX_PICTURE_BYTES picture inflates by ~4/3, plus JSON
+// overhead and the entry's other text fields — reject on the declared
+// Content-Length before buffering/parsing the body, so an oversized request
+// can't force a large allocation just to be rejected after the fact.
+const MAX_REQUEST_BYTES = 8 * 1024 * 1024
+
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const declaredLength = Number(req.headers.get('content-length'))
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+    return NextResponse.json({ error: `Request exceeds ${MAX_REQUEST_BYTES / (1024 * 1024)} MB limit` }, { status: 413 })
+  }
 
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return NextResponse.json({ error: 'Bad JSON' }, { status: 400 }) }
@@ -89,6 +140,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const slug = rawSlug || await uniqueSlug(collection as CollectionName, deriveTitle(fields))
+    if (typeof fields.picture === 'string' && fields.picture.startsWith('data:image/')) {
+      fields.picture = await persistPicture(collection, slug, fields.picture)
+    }
     const mdx  = buildMDX(fields, content)
     await commitMDX({ collection, slug, content: mdx })
     return NextResponse.json({ ok: true, slug }, { status: 200 })

@@ -17,9 +17,19 @@ export default function BookCard({ entry }: Props) {
 
   return (
     <div className="border border-zinc-100 rounded-md overflow-hidden hover:border-zinc-300 transition-colors bg-white">
-      <div className="h-24 bg-zinc-50 flex items-center justify-center text-3xl border-b border-zinc-100">
-        📚
-      </div>
+      {entry.picture ? (
+        // eslint-disable-next-line @next/next/no-img-element -- arbitrary uploaded
+        // file under public/uploads, not a build-known asset next/image can optimize
+        <img
+          src={entry.picture}
+          alt={entry.title}
+          className="h-24 w-full object-cover border-b border-zinc-100"
+        />
+      ) : (
+        <div className="h-24 bg-zinc-50 flex items-center justify-center text-3xl border-b border-zinc-100">
+          📚
+        </div>
+      )}
       <div className="p-3">
         <div className="text-xs font-bold font-serif leading-tight mb-0.5">{entry.title}</div>
         <div className="text-xs font-mono text-zinc-400 mb-2">{entry.author}</div>
