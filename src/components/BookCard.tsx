@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { BookEntry } from '@/types'
 import StatusBadge from './StatusBadge'
+import ImageLightbox from './ImageLightbox'
 
 interface Props {
   entry: BookEntry
@@ -12,6 +13,7 @@ const DESCRIPTION_LIMIT = 260
 
 export default function BookCard({ entry }: Props) {
   const [expanded, setExpanded] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const description = entry.description ?? ''
   const isLong = description.length > DESCRIPTION_LIMIT
 
@@ -23,12 +25,22 @@ export default function BookCard({ entry }: Props) {
         <img
           src={entry.picture}
           alt={entry.title}
-          className="h-24 w-full object-cover border-b border-zinc-100"
+          onClick={() => setLightboxOpen(true)}
+          title="Click to inspect"
+          className="h-24 w-full object-cover border-b border-zinc-100 cursor-zoom-in hover:opacity-90 transition-opacity"
         />
       ) : (
         <div className="h-24 bg-zinc-50 flex items-center justify-center text-3xl border-b border-zinc-100">
           📚
         </div>
+      )}
+      {lightboxOpen && entry.picture && (
+        <ImageLightbox
+          images={[entry.picture]}
+          initialIndex={0}
+          label={entry.title}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
       <div className="p-3">
         <div className="text-xs font-bold font-serif leading-tight mb-0.5">{entry.title}</div>
