@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { isVideo } from '@/lib/media'
 
 interface Props {
   images: string[]
@@ -50,14 +51,39 @@ export default function ImageLightbox({ images, initialIndex, label, onClose }: 
         </button>
       )}
 
-      {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary
-          uploaded file under public/uploads, not a build-known asset */}
-      <img
-        src={images[index]}
-        alt={`${label} photo ${index + 1}`}
-        onClick={(e) => e.stopPropagation()}
-        className="max-w-full max-h-full object-contain rounded"
-      />
+      {isVideo(images[index]) ? (
+        <>
+          <video
+            key={images[index]}
+            src={images[index]}
+            aria-label={`${label} video ${index + 1}`}
+            controls
+            autoPlay
+            loop
+            muted
+            playsInline
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-full max-h-full rounded"
+          />
+          <a
+            href={images[index]}
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-4 right-4 text-xs font-mono text-white/70 hover:text-white transition-colors"
+          >
+            download
+          </a>
+        </>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- arbitrary
+        // uploaded file under public/uploads, not a build-known asset
+        <img
+          src={images[index]}
+          alt={`${label} photo ${index + 1}`}
+          onClick={(e) => e.stopPropagation()}
+          className="max-w-full max-h-full object-contain rounded"
+        />
+      )}
 
       {multi && (
         <button

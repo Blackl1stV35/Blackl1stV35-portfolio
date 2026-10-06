@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { Plus, X } from 'lucide-react'
+import { isVideo } from '@/lib/media'
 
 interface Props {
   /** Array of existing URLs and/or freshly-picked data URLs, in display order */
@@ -92,9 +93,13 @@ export default function PicturesManager({ value, onChange, max = 10 }: Props) {
           className="relative w-16 h-16 cursor-move group"
           title="Drag to reorder"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary
-              uploaded/data-URL preview, not a build-known asset */}
-          <img src={src} alt="" className="w-full h-full object-cover rounded border border-zinc-200" />
+          {isVideo(src) ? (
+            <video src={`${src}#t=0.5`} preload="metadata" muted playsInline className="w-full h-full object-cover rounded border border-zinc-200 pointer-events-none" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- arbitrary
+            // uploaded/data-URL preview, not a build-known asset
+            <img src={src} alt="" className="w-full h-full object-cover rounded border border-zinc-200" />
+          )}
           <button
             type="button"
             onClick={() => removeAt(i)}
