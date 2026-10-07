@@ -20,17 +20,19 @@ export default function BookCard({ entry }: Props) {
   return (
     <div className="border border-zinc-100 rounded-md overflow-hidden hover:border-zinc-300 transition-colors bg-white">
       {entry.picture ? (
-        // eslint-disable-next-line @next/next/no-img-element -- arbitrary uploaded
-        // file under public/uploads, not a build-known asset next/image can optimize
-        <img
-          src={entry.picture}
-          alt={entry.title}
-          onClick={() => setLightboxOpen(true)}
-          title="Click to inspect"
-          className="h-24 w-full object-cover border-b border-zinc-100 cursor-zoom-in hover:opacity-90 transition-opacity"
-        />
+        <div className="h-48 bg-zinc-50 flex items-center justify-center py-2 border-b border-zinc-100">
+          {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary uploaded
+              file under public/uploads, not a build-known asset next/image can optimize */}
+          <img
+            src={entry.picture}
+            alt={entry.title}
+            onClick={() => setLightboxOpen(true)}
+            title="Click to inspect"
+            className="h-full w-auto max-w-full object-contain shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+          />
+        </div>
       ) : (
-        <div className="h-24 bg-zinc-50 flex items-center justify-center text-3xl border-b border-zinc-100">
+        <div className="h-48 bg-zinc-50 flex items-center justify-center text-3xl border-b border-zinc-100">
           📚
         </div>
       )}
