@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { Plus, X } from 'lucide-react'
 import { isVideo } from '@/lib/media'
+import { imageToDataUrl, MAX_UNSAVED_PICTURE_CHARS } from '@/lib/image'
 
 interface Props {
   /** Array of existing URLs and/or freshly-picked data URLs, in display order */
@@ -11,7 +12,8 @@ interface Props {
 }
 
 const ACCEPTED_TYPES = 'image/jpeg,image/png,image/webp,image/gif'
-const MAX_FILE_BYTES = 5 * 1024 * 1024
+// phone photos are shrunk before upload, so a large original is fine
+const MAX_FILE_BYTES = 30 * 1024 * 1024
 
 export default function PicturesManager({ value, onChange, max = 10 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -31,16 +33,23 @@ export default function PicturesManager({ value, onChange, max = 10 }: Props) {
     const candidates = Array.from(files).slice(0, room)
     let skipped = false
 
-    Promise.all(candidates.map((file) => new Promise<string | null>((resolve) => {
-      if (!file.type.startsWith('image/')) { skipped = true; resolve(null); return }
-      if (file.size > MAX_FILE_BYTES) { skipped = true; resolve(null); return }
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = () => { skipped = true; resolve(null) }
-      reader.readAsDataURL(file)
-    }))).then((results) => {
-      const added = results.filter((r): r is string => !!r)
-      if (skipped) alert('Some files were skipped (images only, max 5 MB each)')
+    Promise.all(candidates.map(async (file) => {
+      if (!file.type.startsWith('image/')) { skipped = true; return null }
+      if (file.size > MAX_FILE_BYTES) { skipped = true; return null }
+      try { return await imageToDataUrl(file) } catch { skipped = true; return null }
+    })).then((results) => {
+      // the host takes about 4.5 MB per save, so keep the not-yet-saved pictures under it
+      let used = valueRef.current.reduce((n, s) => (s.startsWith('data:') ? n + s.length : n), 0)
+      let overflow = false
+      const added: string[] = []
+      for (const r of results) {
+        if (!r) continue
+        if (used + r.length > MAX_UNSAVED_PICTURE_CHARS) { overflow = true; continue }
+        used += r.length
+        added.push(r)
+      }
+      if (skipped) alert('Some files were skipped (images only, max 30 MB each)')
+      if (overflow) alert('Too much new picture data for one save (the server takes about 4 MB). Save this entry, then add the rest.')
       if (added.length) {
         const next = [...valueRef.current, ...added]
         valueRef.current = next

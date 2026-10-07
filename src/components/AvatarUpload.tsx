@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef } from 'react'
 import { Upload, X } from 'lucide-react'
+import { imageToDataUrl, MAX_UNSAVED_PICTURE_CHARS } from '@/lib/image'
 
 interface Props {
   /** Initial image URL (from saved state / env) */
@@ -19,18 +20,19 @@ export default function AvatarUpload({ src, initials = '?', onChange, className 
   const [preview, setPreview] = useState<string | null>(src ?? null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) { alert('Images only (JPG, PNG, WebP, GIF)'); return }
-    if (file.size > 5 * 1024 * 1024) { alert('Max 5 MB'); return }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const url = reader.result as string
+    if (file.size > 30 * 1024 * 1024) { alert('Max 30 MB'); return }
+    try {
+      const url = await imageToDataUrl(file, 1200)
+      if (url.length > MAX_UNSAVED_PICTURE_CHARS) { alert('That image is still too large after shrinking'); return }
       setPreview(url)
       onChange?.(url)
+    } catch {
+      alert('Could not read that image')
     }
-    reader.readAsDataURL(file)
   }
 
   function handleClear(e: React.MouseEvent) {

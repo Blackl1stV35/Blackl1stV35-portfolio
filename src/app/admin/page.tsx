@@ -7,6 +7,14 @@ import PicturesManager from '@/components/PicturesManager'
 type CollectionName = 'projects' | 'work' | 'publications' | 'books' | 'activity' | 'achievement'
 type Panel = CollectionName | '_uploads' | '_author' | '_contact'
 
+// The host answers an oversized request with a plain 413 page, not JSON, so
+// reading res.json() directly threw and the save looked like it did nothing.
+async function errorText(res: Response): Promise<string> {
+  if (res.status === 413) return 'The upload is too large for the server (about 4 MB per save). Remove a picture or save in smaller batches.'
+  const j = await res.json().catch(() => null)
+  return j?.error ?? `Request failed (${res.status})`
+}
+
 const COLLECTIONS: CollectionName[] = ['projects', 'work', 'publications', 'books', 'activity', 'achievement']
 
 type FieldDef = { key: string; label: string; type: string; options?: string[] }
@@ -115,6 +123,9 @@ export default function AdminPage() {
   const [panel, setPanel]       = useState<Panel>('_author')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  // the form sits below the entries list, which is far off screen on a phone, so
+  // bring it into view when it opens or another entry is loaded into it
+  const formRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
@@ -133,6 +144,9 @@ export default function AdminPage() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const [entries, setEntries] = useState<Record<string, unknown>[]>([])
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
+  useEffect(() => {
+    if (showForm) formRef.current?.scrollIntoView({ block: 'start' })
+  }, [showForm, editingSlug])
 
   useEffect(() => {
     const s = sessionStorage.getItem('admin_session')
@@ -263,11 +277,18 @@ export default function AdminPage() {
       photo: authorPhoto ?? null,
       tags: authorData.tags ? authorData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
     }
-    const res = await fetch('/api/author', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
-      body: JSON.stringify(payload),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/author', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
+        body: JSON.stringify(payload),
+      })
+    } catch {
+      setAuthorSaving(false)
+      alert('Could not reach the server. Check the connection and try again.')
+      return
+    }
     setAuthorSaving(false)
     if (res.ok) {
       setAuthorSaved(true)
@@ -275,19 +296,25 @@ export default function AdminPage() {
       // attempt to trigger redeploy (no-op if not configured)
       try { await fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }) } catch {}
     } else {
-      const j = await res.json()
-      alert('Error: ' + j.error)
+      alert('Error: ' + await errorText(res))
     }
   }
 
   async function saveContact() {
     setContactSaving(true)
     const payload = { ...contactData }
-    const res = await fetch('/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
-      body: JSON.stringify(payload),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
+        body: JSON.stringify(payload),
+      })
+    } catch {
+      setContactSaving(false)
+      alert('Could not reach the server. Check the connection and try again.')
+      return
+    }
     setContactSaving(false)
     if (res.ok) {
       // show saved briefly
@@ -295,8 +322,7 @@ export default function AdminPage() {
       setTimeout(() => setAuthorSaved(false), 3000)
       try { await fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }) } catch {}
     } else {
-      const j = await res.json()
-      alert('Error: ' + j.error)
+      alert('Error: ' + await errorText(res))
     }
   }
 
@@ -336,11 +362,18 @@ export default function AdminPage() {
     // schema has moved on to the `pictures` gallery — drop the stale duplicate
     // rather than writing it back into frontmatter alongside the new array
     if (!hasField('picture')) delete typedFields.picture
-    const res = await fetch('/api/collections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
-      body: JSON.stringify({ collection: panel, slug: editingSlug ?? undefined, fields: typedFields, content: formData._body ?? '' }),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
+        body: JSON.stringify({ collection: panel, slug: editingSlug ?? undefined, fields: typedFields, content: formData._body ?? '' }),
+      })
+    } catch {
+      setSaving(false)
+      alert('Could not reach the server. Check the connection and try again.')
+      return
+    }
     setSaving(false)
     if (res.ok) {
       const j = await res.json().catch(() => null)
@@ -355,8 +388,7 @@ export default function AdminPage() {
       }, 2500)
       try { await fetch('/api/redeploy', { method: 'POST', headers: { Authorization: `Bearer ${session}` } }) } catch {}
     } else {
-      const j = await res.json()
-      alert('Error: ' + j.error)
+      alert('Error: ' + await errorText(res))
     }
   }
 
@@ -535,7 +567,7 @@ export default function AdminPage() {
           {sidebarLinks}
         </aside>
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-auto">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-x-clip">
 
           {/* ── Author profile panel ── */}
           {panel === '_author' && (
@@ -555,7 +587,7 @@ export default function AdminPage() {
                     Click to upload photo.<br />
                     Saved to author.json via GitHub API.<br />
                     Displayed on About page + PDF cover.<br />
-                    Max 5 MB · JPG / PNG / WebP.
+                    Max 30 MB · JPG / PNG / WebP · resized automatically.
                   </div>
                 </div>
               </div>
@@ -573,9 +605,11 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <button onClick={saveAuthor} disabled={authorSaving}
-                className="bg-zinc-900 text-white text-xs font-mono px-4 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-              >{authorSaving ? 'Saving…' : 'Save & commit to GitHub'}</button>
+              <div className="sticky bottom-0 z-10 py-3 bg-zinc-50">
+                <button onClick={saveAuthor} disabled={authorSaving}
+                  className="min-h-[44px] bg-zinc-900 text-white text-xs font-mono px-5 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                >{authorSaving ? 'Saving…' : 'Save & commit to GitHub'}</button>
+              </div>
             </div>
           )}
 
@@ -602,12 +636,12 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="sticky bottom-0 z-10 py-3 bg-zinc-50 flex items-center gap-2 flex-wrap">
                 <button onClick={saveContact} disabled={contactSaving}
-                  className="bg-zinc-900 text-white text-xs font-mono px-4 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                  className="min-h-[44px] bg-zinc-900 text-white text-xs font-mono px-5 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
                 >{contactSaving ? 'Saving…' : 'Save & commit to GitHub'}</button>
                 <button onClick={deleteContact}
-                  className="text-xs font-mono border border-zinc-200 px-4 py-2 rounded hover:bg-zinc-50 transition-colors"
+                  className="min-h-[44px] text-xs font-mono border border-zinc-200 px-5 py-2 rounded hover:bg-zinc-50 transition-colors"
                 >Delete contact data</button>
               </div>
             </div>
@@ -650,7 +684,7 @@ export default function AdminPage() {
               )}
 
               {showForm && (
-                <div className="bg-white border border-zinc-200 rounded-md p-5 mb-5">
+                <div ref={formRef} className="bg-white border border-zinc-200 rounded-md p-5 mb-5 scroll-mt-4">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
                     {FIELDS[panel as CollectionName].map(f => (
                       <div key={f.key} className={f.type === 'textarea' || f.type === 'image' || f.type === 'images' ? 'lg:col-span-2' : ''}>
@@ -659,12 +693,12 @@ export default function AdminPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="sticky bottom-0 z-10 -mx-5 -mb-5 px-5 py-3 bg-white border-t border-zinc-100 rounded-b-md flex items-center gap-2 flex-wrap">
                     <button onClick={saveEntry} disabled={saving}
-                      className="bg-zinc-900 text-white text-xs font-mono px-4 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                      className="min-h-[44px] bg-zinc-900 text-white text-xs font-mono px-5 py-2 rounded hover:bg-zinc-700 disabled:opacity-50 transition-colors"
                     >{saving ? 'Committing…' : 'Save & commit to GitHub'}</button>
                     <button onClick={() => setShowForm(false)}
-                      className="text-xs font-mono border border-zinc-200 px-4 py-2 rounded hover:bg-zinc-50 transition-colors"
+                      className="min-h-[44px] text-xs font-mono border border-zinc-200 px-5 py-2 rounded hover:bg-zinc-50 transition-colors"
                     >Cancel</button>
                     {saved && <span className="text-xs font-mono text-green-600 flex items-center gap-1"><CheckCircle size={12} /> Committed — redeploy triggered</span>}
                   </div>
